@@ -3,53 +3,45 @@ use crate::state::{
     BoundGuiState, ProjectSaveState, StateSystem,
 };
 
-pub mod components;
-use components::*;
+pub mod views;
+use views::*;
 
-use tuix::*;
+use vizia::*;
 
 const THEME: &str = include_str!("theme.css");
 
 pub struct App {
-    state_system: StateSystem,
+
 }
 
 impl App {
-    pub fn new() -> Self {
-        Self { state_system: StateSystem::new() }
+    pub fn new(cx: &mut Context) -> Handle<Self> {
+        Self {}.build(cx).background_color(Color::rgb(10,10,10))
     }
 }
 
-impl Widget for App {
-    type Ret = Entity;
-    type Data = ();
-    fn on_build(&mut self, state: &mut State, app: Entity) -> Self::Ret {
-        Header::default().build(state, app, |builder| builder);
+impl View for App {
+    fn body(&mut self, cx: &mut Context) {
+        Header::new(cx);
 
-        Timeline::new().build(state, app, |builder| builder);
-
-        app.set_background_color(state, Color::rgb(10, 10, 10))
+        //app.set_background_color(state, Color::rgb(10, 10, 10))
     }
-
-    fn on_event(&mut self, state: &mut State, entity: Entity, event: &mut Event) {}
 }
 
 pub fn run() {
     let project_save_state = Box::new(ProjectSaveState::test());
 
     let window_description = WindowDescription::new().with_title("Meadowlark");
-    let app = Application::new(window_description, |state, window| {
-        //state.add_theme(DEFAULT_THEME);
-        state.add_theme(THEME);
+    let app = Application::new(move |cx| {
 
-        //let text_to_speech = TextToSpeach::new().build(state, window, |builder| builder);
+        cx.add_theme(THEME);
 
-        let bound_gui_state = BoundGuiState::new().build(state, window);
+        BoundGuiState::new().build(cx);
 
-        let app = App::new().build(state, bound_gui_state, |builder| builder);
+        cx.emit_trace(StateSystemEvent::Project(ProjectEvent::LoadProject(project_save_state.clone())));
 
-        bound_gui_state
-            .emit(state, StateSystemEvent::Project(ProjectEvent::LoadProject(project_save_state)));
+        App::new(cx);
+
     });
 
     app.run();

@@ -1,8 +1,7 @@
 use cpal::Stream;
 use rusty_daw_audio_graph::{NodeRef, PortType};
 use rusty_daw_core::SampleRate;
-use tuix::PropSet;
-use tuix::{BindEvent, Entity, State};
+use vizia::Context;
 
 use crate::backend::timeline::{TimelineTrackHandle, TimelineTrackNode};
 use crate::backend::{BackendHandle, ResourceLoadError};
@@ -34,19 +33,18 @@ impl StateSystem {
     pub fn on_event(
         &mut self,
         bound_gui_state: &mut BoundGuiState,
-        state: &mut State,
-        entity: Entity,
+        cx: &mut Context,
         event: &mut StateSystemEvent,
-    ) {
+    ) -> bool {
         match event {
             StateSystemEvent::Transport(event) => {
-                self.on_transport_event(bound_gui_state, state, entity, event)
+                self.on_transport_event(bound_gui_state, cx, event)
             }
             StateSystemEvent::Tempo(event) => {
-                self.on_tempo_event(bound_gui_state, state, entity, event)
+                self.on_tempo_event(bound_gui_state, cx, event)
             }
             StateSystemEvent::Project(event) => {
-                self.on_project_event(bound_gui_state, state, entity, event)
+                self.on_project_event(bound_gui_state, cx, event)
             }
         }
     }
@@ -54,10 +52,9 @@ impl StateSystem {
     pub fn on_tempo_event(
         &mut self,
         bound_gui_state: &mut BoundGuiState,
-        state: &mut State,
-        entity: Entity,
+        cx: &mut Context,
         event: &mut TempoEvent,
-    ) {
+    ) -> bool {
         if let Some(backend_handle) = &mut self.backend_handle {
             match event {
                 TempoEvent::SetBPM(bpm) => {
@@ -66,19 +63,20 @@ impl StateSystem {
                     bound_gui_state.bpm = bpm;
                     backend_handle.set_bpm(bpm, &mut bound_gui_state.save_state.backend);
 
-                    entity.emit(state, BindEvent::Update);
+                    true
                 }
             }
+        } else {
+            false
         }
     }
 
     pub fn on_transport_event(
         &mut self,
         bound_gui_state: &mut BoundGuiState,
-        state: &mut State,
-        entity: Entity,
+        cx: &mut Context,
         event: &mut TransportEvent,
-    ) {
+    ) -> bool {
         if let Some(backend_handle) = &mut self.backend_handle {
             match event {
                 TransportEvent::Play => {
@@ -89,7 +87,7 @@ impl StateSystem {
                             .timeline_transport_mut(&mut bound_gui_state.save_state.backend);
                         transport.set_playing(true);
 
-                        entity.emit(state, BindEvent::Update);
+                        return true;
                     }
                 }
                 TransportEvent::Stop => {
@@ -101,7 +99,7 @@ impl StateSystem {
                     // TODO: have the transport struct handle this.
                     transport.seek_to(0.0.into(), save_state);
 
-                    entity.emit(state, BindEvent::Update);
+                    return true;
                 }
                 TransportEvent::Pause => {
                     if bound_gui_state.is_playing {
@@ -111,23 +109,26 @@ impl StateSystem {
                             .timeline_transport_mut(&mut bound_gui_state.save_state.backend);
                         transport.set_playing(false);
 
-                        entity.emit(state, BindEvent::Update);
+                        return true;
                     }
                 }
             }
+        } else {
+            println!("Failed to get backend handle");
         }
+
+        false
     }
 
     pub fn on_project_event(
         &mut self,
         bound_gui_state: &mut BoundGuiState,
-        state: &mut State,
-        entity: Entity,
+        cx: &mut Context,
         event: &mut ProjectEvent,
-    ) {
+    ) -> bool {
         match event {
             ProjectEvent::LoadProject(project_save_state) => {
-                self.load_project(bound_gui_state, project_save_state, state, entity)
+                self.load_project(bound_gui_state, project_save_state, cx)
             }
         }
     }
@@ -136,19 +137,14 @@ impl StateSystem {
         &mut self,
         bound_gui_state: &mut BoundGuiState,
         project_save_state: &Box<ProjectSaveState>,
-        state: &mut State,
-        entity: Entity,
-    ) {
-        let mut update_gui = || {
-            entity.emit(state, BindEvent::Update);
-        };
+        cx: &mut Context,
+    ) -> bool {
 
         // Reset all events
         //self.event_queue.clear();
 
         bound_gui_state.backend_loaded = false;
         bound_gui_state.is_playing = false;
-        update_gui();
 
         // This will drop and automatically close any active backend/stream.
         self.backend_handle = None;
@@ -170,7 +166,6 @@ impl StateSystem {
         // This function is temporary. Eventually we should use rusty-daw-io instead.
         if let Ok(stream) = crate::backend::rt_thread::run_with_default_output(rt_state) {
             bound_gui_state.bpm = project_save_state.backend.tempo_map.bpm();
-            update_gui();
 
             // TODO: errors and reverting to previous working state
             let _ = backend_handle.modify_graph(|mut graph, resource_cache| {
@@ -215,11 +210,15 @@ impl StateSystem {
             self.sample_rate = sample_rate;
 
             bound_gui_state.backend_loaded = true;
+
+            true
         } else {
             // TODO: Better errors
             log::error!("Failed to start audio stream");
             // TODO: Remove this panic
             panic!("Failed to start audio stream");
+            
+            false
         }
     }
 }

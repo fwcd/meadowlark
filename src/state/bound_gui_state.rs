@@ -1,6 +1,6 @@
-use tuix::{Entity, Event, Lens, Model, State};
+use vizia::{Entity, Event, Lens, Model, State, Context};
 
-use super::{ProjectSaveState, StateSystem};
+use super::{ProjectSaveState, StateSystem, project_save_state};
 
 #[derive(Lens)]
 pub struct BoundGuiState {
@@ -27,14 +27,18 @@ impl BoundGuiState {
 }
 
 impl Model for BoundGuiState {
-    fn on_event(&mut self, state: &mut State, entity: Entity, event: &mut Event) {
+    fn event(&mut self, cx: &mut Context, event: &mut Event) -> bool {
         if let Some(state_system_event) = event.message.downcast() {
             // This is to get around the borrow checker.
             let mut state_system = self.state_system.take().unwrap();
 
-            state_system.on_event(self, state, entity, state_system_event);
+            let ret = state_system.on_event(self, cx, state_system_event);
 
             self.state_system = Some(state_system);
+
+            ret
+        } else {
+            false
         }
     }
 }

@@ -1,5 +1,5 @@
 use rusty_daw_core::{SampleRate, Seconds};
-use tuix::Lens;
+use vizia::Lens;
 
 use crate::backend::timeline::TempoMap;
 
@@ -11,7 +11,7 @@ use crate::backend::timeline::{
 /// for the backend.
 ///
 /// TODO: Project file format. This will need to be future-proof.
-#[derive(Debug, Clone, Lens)]
+#[derive(Debug, Clone)]
 pub struct BackendSaveState {
     pub timeline_transport: TimelineTransportSaveState,
     pub tempo_map: TempoMap,

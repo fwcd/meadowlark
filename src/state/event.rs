@@ -1,6 +1,6 @@
 use super::ProjectSaveState;
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub enum StateSystemEvent {
     Transport(TransportEvent),
     Tempo(TempoEvent),
@@ -15,7 +15,7 @@ impl PartialEq for StateSystemEvent {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub enum ProjectEvent {
     LoadProject(Box<ProjectSaveState>),
 }

@@ -6,6 +6,3 @@ pub use header::*;
 
 mod control_bars;
 pub use control_bars::*;
-
-mod timeline;
-pub use timeline::*; 
