@@ -1,3 +1,6 @@
+// On Windows platform, don't show a console when opening the app.
+#![windows_subsystem = "windows"]
+
 mod backend;
 mod state;
 mod ui;

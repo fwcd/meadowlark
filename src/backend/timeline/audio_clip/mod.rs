@@ -7,7 +7,6 @@ use rusty_daw_core::{
 };
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
-use tuix::Lens;
 
 use crate::backend::resource_loader::{AnyPcm, PcmLoadError, ResourceLoader};
 use crate::backend::{ResourceCache, MAX_BLOCKSIZE};
@@ -23,7 +22,7 @@ pub use resource::{AudioClipResource, AudioClipResourceCache};
 pub static AUDIO_CLIP_GAIN_MIN_DB: f32 = -40.0;
 pub static AUDIO_CLIP_GAIN_MAX_DB: f32 = 40.0;
 
-#[derive(Debug, Clone, Copy, Lens)]
+#[derive(Debug, Clone, Copy)]
 pub struct AudioClipFades {
     pub start_fade_duration: Seconds,
     pub end_fade_duration: Seconds,

@@ -1,11 +1,11 @@
 use rusty_daw_core::{MusicalTime, Seconds};
 use std::path::PathBuf;
-use tuix::Lens;
 
 use super::{AudioClipFades, LoopState};
 
-#[derive(Debug, Clone, Copy, Lens)]
+#[derive(Debug, Clone, Copy)]
 pub struct TimelineTransportSaveState {
+    /// The place where the playhead will seek to on project load/transport stop.
     pub seek_to: MusicalTime,
     pub loop_state: LoopState,
 }
@@ -16,7 +16,7 @@ impl Default for TimelineTransportSaveState {
     }
 }
 
-#[derive(Debug, Clone, Lens)]
+#[derive(Debug, Clone)]
 pub struct TimelineTrackSaveState {
     /// The name displayed on this timeline track.
     pub name: String,
@@ -26,7 +26,7 @@ pub struct TimelineTrackSaveState {
     pub audio_clips: Vec<AudioClipSaveState>,
 }
 
-#[derive(Debug, Clone, Lens)]
+#[derive(Debug, Clone)]
 pub struct AudioClipSaveState {
     /// The name displayed on the audio clip.
     pub name: String,

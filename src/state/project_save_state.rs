@@ -6,7 +6,7 @@ use crate::backend::timeline::{
 use crate::backend::BackendSaveState;
 
 /// This struct should contain all information needed to create a "save file"
-/// for a project.
+/// for a project. This includes the state of the backend.
 ///
 /// TODO: Project file format. This will need to be future-proof.
 #[derive(Debug, Clone)]

@@ -1,5 +1,4 @@
 use rusty_daw_core::{SampleRate, Seconds};
-use tuix::Lens;
 
 use crate::backend::timeline::TempoMap;
 
@@ -11,7 +10,7 @@ use crate::backend::timeline::{
 /// for the backend.
 ///
 /// TODO: Project file format. This will need to be future-proof.
-#[derive(Debug, Clone, Lens)]
+#[derive(Debug, Clone)]
 pub struct BackendSaveState {
     pub timeline_transport: TimelineTransportSaveState,
     pub tempo_map: TempoMap,
@@ -41,7 +40,7 @@ impl BackendSaveState {
         let mut tempo_map = self.tempo_map.clone();
         tempo_map.sample_rate = sample_rate;
         Self {
-            timeline_transport: self.timeline_transport.clone(),
+            timeline_transport: self.timeline_transport,
             tempo_map,
             audio_clip_declick_time: self.audio_clip_declick_time,
         }
