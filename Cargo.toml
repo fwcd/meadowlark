@@ -13,10 +13,10 @@ rusty-daw-core = "0.2"
 rusty-daw-audio-graph = { git = "https://github.com/RustyDAW/rusty-daw-audio-graph.git", rev = "d6b7b7fe24af4e6f9a93323e72c003631056de2b", features = ["cpal-backend"] }
 # rusty-daw-audio-graph = { path = "../rusty-daw-audio-graph", features = ["cpal-backend"] }
 cpal = "0.13"
-eframe = "0.15"
 im = "15.0"
-# tuix = { git = "https://github.com/geom3trik/tuix.git", rev = "9ce730860610db948d7b07bb1919b68cc6e7aeaf" }
-# tuix = { path = "../tuix" }
+
+
+vizia = {path = "../vizia", features = ["meadowlark"]}
 ringbuf = "0.2"
 basedrop = "0.1"
 llq = "0.1"

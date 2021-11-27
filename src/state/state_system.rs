@@ -1,6 +1,9 @@
+use std::collections::VecDeque;
+
 use cpal::Stream;
 use rusty_daw_audio_graph::{NodeRef, PortType};
 use rusty_daw_core::SampleRate;
+use vizia::{Lens, Model};
 
 use crate::backend::timeline::{TimelineTrackHandle, TimelineTrackNode};
 use crate::backend::{BackendHandle, ResourceLoadError};
@@ -19,17 +22,24 @@ pub struct Project {
 /// All mutation of any backend, UI, or save state must happen through this struct.
 /// It is the responsibility of this struct to make sure all 3 of these states are synced
 /// properly.
+#[derive(Lens)]
 pub struct StateSystem {
+    #[lens(ignore)]
     project: Option<Project>,
     ui_state: UiState,
+    undo_stack: VecDeque<AppEvent>,
 }
 
 impl StateSystem {
     pub fn new() -> Self {
-        Self { project: None, ui_state: UiState::default() }
+        Self { 
+            project: None,
+            ui_state: UiState::default(),
+            undo_stack: VecDeque::new(),
+        }
     }
 
-    pub fn ui_state(&self) -> &UiState {
+    pub fn get_ui_state(&self) -> &UiState {
         &self.ui_state
     }
 
@@ -57,7 +67,7 @@ impl StateSystem {
         let mut timeline_track_handles: Vec<(NodeRef, TimelineTrackHandle)> = Vec::new();
         let mut resource_load_errors: Vec<ResourceLoadError> = Vec::new();
 
-        // This function is temporary. Eventually we should use rusty-daw-io instead.
+        //This function is temporary. Eventually we should use rusty-daw-io instead.
         if let Ok(stream) = crate::backend::rt_thread::run_with_default_output(rt_state) {
             self.ui_state.tempo_map.bpm = project_save_state.backend.tempo_map.bpm();
             self.ui_state.sample_rate = sample_rate;
@@ -177,6 +187,66 @@ impl StateSystem {
                 project.backend_handle.timeline_transport_mut(&mut project.save_state.backend);
             transport.set_playing(false);
             transport.seek_to(0.0.into(), save_state);
+        }
+    }
+
+    pub fn sync_playhead(&mut self) {
+        if let Some(project) = &mut self.project {
+            let (transport, save_state) =
+                project.backend_handle.timeline_transport_mut(&mut project.save_state.backend);
+            self.ui_state.timeline_transport.playhead = transport.get_playhead_position();
+        }
+    }
+}
+
+
+#[derive(Debug)]
+pub enum AppEvent {
+
+    // Force a sync
+    Sync,
+
+    // Tempo Controls
+    SetBpm(f64),
+
+    // Transport Controls
+    Play,
+    Pause,
+    Stop,
+}
+
+
+impl Model for StateSystem {
+    fn event(&mut self, cx: &mut vizia::Context, event: &mut vizia::Event) {
+        if let Some(app_event) = event.message.downcast() {
+            match app_event {
+
+                AppEvent::Sync => {
+                    self.sync_playhead();
+                }
+
+                AppEvent::SetBpm(bpm) => {
+                    println!("Set bpm: {}", bpm);
+                    self.set_bpm(*bpm);
+                }
+
+                AppEvent::Play => {
+                    println!("Play");
+                    self.timeline_transport_play();
+                    
+                }
+
+                AppEvent::Pause => {
+                    println!("Pause");
+                    self.timeline_transport_pause();
+                    self.sync_playhead();
+                }
+
+                AppEvent::Stop => {
+                    println!("Stop");
+                    self.timeline_transport_stop();
+                }
+            }
         }
     }
 }

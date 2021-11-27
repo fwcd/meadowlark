@@ -1,4 +1,5 @@
 use rusty_daw_core::{MusicalTime, SampleRate, Seconds};
+use vizia::{Lens, Model};
 use std::path::PathBuf;
 
 use crate::backend::timeline::{AudioClipSaveState, LoopState};
@@ -25,6 +26,7 @@ use crate::backend::timeline::{AudioClipSaveState, LoopState};
 /// 6. Memory is cheap nowadays anyway, and it's not like we're cloning large
 /// blocks of data like audio samples (the largest things we will clone will
 /// mostly just be strings, piano roll clips, and automation tracks).
+#[derive(Lens)]
 pub struct UiState {
     pub backend_loaded: bool,
 
@@ -49,16 +51,32 @@ impl Default for UiState {
     }
 }
 
+impl Model for UiState {
+    
+}
+
+#[derive(Lens)]
 pub struct TempoMapUiState {
     // TODO: This will need to change once we start to support automation of tempo.
     pub bpm: f64,
 }
 
+impl Model for TempoMapUiState {
+
+}
+
+
+#[derive(Lens)]
 pub struct TimelineTransportUiState {
     pub is_playing: bool,
     /// The place where the playhead will seek to on project load/transport stop.
     pub seek_to: MusicalTime,
     pub loop_state: LoopUiState,
+    pub playhead: MusicalTime,
+}
+
+impl Model for TimelineTransportUiState {
+
 }
 
 impl Default for TimelineTransportUiState {
@@ -67,6 +85,7 @@ impl Default for TimelineTransportUiState {
             is_playing: false,
             seek_to: MusicalTime::new(0.into()),
             loop_state: LoopUiState::Inactive,
+            playhead: MusicalTime::new(0.into()),
         }
     }
 }
@@ -96,6 +115,7 @@ impl From<LoopState> for LoopUiState {
     }
 }
 
+#[derive(Lens)]
 pub struct TimelineTrackUiState {
     /// The name displayed on this timeline track.
     pub name: String,
@@ -105,6 +125,12 @@ pub struct TimelineTrackUiState {
     pub audio_clips: Vec<AudioClipUiState>,
 }
 
+impl Model for TimelineTrackUiState {
+
+}
+
+
+#[derive(Lens)]
 pub struct AudioClipUiState {
     /// The name displayed on the audio clip.
     pub name: String,
@@ -128,6 +154,10 @@ pub struct AudioClipUiState {
     pub fades: AudioClipFadesUiState,
 }
 
+impl Model for AudioClipUiState {
+
+}
+
 impl From<&AudioClipSaveState> for AudioClipUiState {
     fn from(a: &AudioClipSaveState) -> Self {
         Self {
@@ -145,8 +175,12 @@ impl From<&AudioClipSaveState> for AudioClipUiState {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Lens)]
 pub struct AudioClipFadesUiState {
     pub start_fade_duration: Seconds,
     pub end_fade_duration: Seconds,
+}
+
+impl Model for AudioClipFadesUiState {
+    
 }
