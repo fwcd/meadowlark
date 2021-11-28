@@ -1,5 +1,5 @@
 use rusty_daw_core::{MusicalTime, SampleRate, Seconds};
-use vizia::{Lens, Model};
+use vizia::{Data, Lens, Model};
 use std::path::PathBuf;
 
 use crate::backend::timeline::{AudioClipSaveState, LoopState};
@@ -66,7 +66,7 @@ impl Model for TempoMapUiState {
 }
 
 
-#[derive(Lens)]
+#[derive(Clone, Data, Lens)]
 pub struct TimelineTransportUiState {
     pub is_playing: bool,
     /// The place where the playhead will seek to on project load/transport stop.
@@ -91,7 +91,7 @@ impl Default for TimelineTransportUiState {
 }
 
 /// The status of looping on this transport.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Data)]
 pub enum LoopUiState {
     /// The transport is not currently looping.
     Inactive,
@@ -115,7 +115,7 @@ impl From<LoopState> for LoopUiState {
     }
 }
 
-#[derive(Lens)]
+#[derive(Clone, Data, Lens)]
 pub struct TimelineTrackUiState {
     /// The name displayed on this timeline track.
     pub name: String,
@@ -130,12 +130,13 @@ impl Model for TimelineTrackUiState {
 }
 
 
-#[derive(Lens)]
+#[derive(Clone, Data, Lens)]
 pub struct AudioClipUiState {
     /// The name displayed on the audio clip.
     pub name: String,
 
     /// The path to the audio file containing the PCM data.
+    #[data(ignore)]
     pub pcm_path: PathBuf,
 
     /// Where the clip starts on the timeline.
@@ -175,7 +176,7 @@ impl From<&AudioClipSaveState> for AudioClipUiState {
     }
 }
 
-#[derive(Debug, Clone, Copy, Lens)]
+#[derive(Debug, Clone, Copy, Data, Lens)]
 pub struct AudioClipFadesUiState {
     pub start_fade_duration: Seconds,
     pub end_fade_duration: Seconds,

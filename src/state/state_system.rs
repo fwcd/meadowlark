@@ -2,13 +2,13 @@ use std::collections::VecDeque;
 
 use cpal::Stream;
 use rusty_daw_audio_graph::{NodeRef, PortType};
-use rusty_daw_core::SampleRate;
+use rusty_daw_core::{MusicalTime, SampleRate};
 use vizia::{Lens, Model};
 
-use crate::backend::timeline::{TimelineTrackHandle, TimelineTrackNode};
+use crate::backend::timeline::{LoopState, TimelineTrackHandle, TimelineTrackNode};
 use crate::backend::{BackendHandle, ResourceLoadError};
 
-use super::ui_state::{TimelineTrackUiState, UiState};
+use super::ui_state::{LoopUiState, TimelineTrackUiState, UiState};
 use super::ProjectSaveState;
 
 pub struct Project {
@@ -154,6 +154,63 @@ impl StateSystem {
         }
     }
 
+    pub fn set_loop_end(&mut self, new_loop_end: MusicalTime) {
+
+        let loop_start = match &mut self.ui_state.timeline_transport.loop_state {
+            LoopUiState::Active { 
+                loop_start, 
+                loop_end, 
+            } => {
+                *loop_end = new_loop_end;
+                *loop_start
+            }
+
+            LoopUiState::Inactive => {
+                self.ui_state.timeline_transport.loop_state = LoopUiState::Active {
+                    loop_start: new_loop_end,
+                    loop_end: new_loop_end,
+                };
+
+                new_loop_end
+            }
+        };
+
+        if let Some(project) = &mut self.project {
+            let (transport, _) =
+                    project.backend_handle.timeline_transport_mut(&mut project.save_state.backend);
+            transport.set_loop_state(LoopState::Active {loop_start, loop_end: new_loop_end }, &mut project.save_state.backend.timeline_transport);
+            
+        }
+    }
+
+    pub fn set_loop_start(&mut self, new_loop_start: MusicalTime) {
+
+        let loop_end = match &mut self.ui_state.timeline_transport.loop_state {
+            LoopUiState::Active { 
+                loop_start, 
+                loop_end, 
+            } => {
+                *loop_start = new_loop_start;
+                *loop_end
+            }
+
+            LoopUiState::Inactive => {
+                self.ui_state.timeline_transport.loop_state = LoopUiState::Active {
+                    loop_start: new_loop_start,
+                    loop_end: new_loop_start,
+                };
+
+                new_loop_start
+            }
+        };
+
+        if let Some(project) = &mut self.project {
+            let (transport, _) =
+                    project.backend_handle.timeline_transport_mut(&mut project.save_state.backend);
+            transport.set_loop_state(LoopState::Active {loop_start: new_loop_start, loop_end }, &mut project.save_state.backend.timeline_transport);
+        }
+    }
+
     pub fn timeline_transport_play(&mut self) {
         if let Some(project) = &mut self.project {
             if !self.ui_state.timeline_transport.is_playing {
@@ -213,6 +270,10 @@ pub enum AppEvent {
     Play,
     Pause,
     Stop,
+
+    // Loop Controls
+    SetLoopStart(MusicalTime),
+    SetLoopEnd(MusicalTime),
 }
 
 
@@ -225,11 +286,13 @@ impl Model for StateSystem {
                     self.sync_playhead();
                 }
 
+                // TEMPO
                 AppEvent::SetBpm(bpm) => {
                     println!("Set bpm: {}", bpm);
                     self.set_bpm(*bpm);
                 }
 
+                // TRANSPORT
                 AppEvent::Play => {
                     println!("Play");
                     self.timeline_transport_play();
@@ -245,6 +308,15 @@ impl Model for StateSystem {
                 AppEvent::Stop => {
                     println!("Stop");
                     self.timeline_transport_stop();
+                }
+
+                //LOOP
+                AppEvent::SetLoopStart(loop_start) => {
+                    self.set_loop_start(*loop_start);
+                }
+
+                AppEvent::SetLoopEnd(loop_end) => {
+                    self.set_loop_end(*loop_end);
                 }
             }
         }

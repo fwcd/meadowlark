@@ -25,7 +25,7 @@ impl ProjectSaveState {
             seek_to: MusicalTime(0.0),
             loop_state: LoopState::Active {
                 loop_start: MusicalTime::new(0.0),
-                loop_end: MusicalTime::new(4.0),
+                loop_end: MusicalTime::new(12.0),
             },
         };
 
@@ -37,8 +37,8 @@ impl ProjectSaveState {
             name: String::from("Track 1"),
             audio_clips: vec![AudioClipSaveState {
                 name: String::from("Audio Clip 1"),
-                pcm_path: "./assets/test_files/synth_keys/synth_keys_48000_16bit.wav".into(),
-                timeline_start: MusicalTime::new(0.0),
+                pcm_path: "./assets/test_files/piano/pp.wav".into(),
+                timeline_start: MusicalTime::new(8.0),
                 duration: Seconds::new(3.0),
                 clip_start_offset: Seconds::new(0.0),
                 clip_gain_db: -3.0,

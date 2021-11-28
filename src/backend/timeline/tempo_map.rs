@@ -193,6 +193,6 @@ impl TempoMap {
 
 impl Default for TempoMap {
     fn default() -> Self {
-        TempoMap::new(110.0, SampleRate::default())
+        TempoMap::new(120.0, SampleRate::default())
     }
 }
