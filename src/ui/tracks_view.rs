@@ -80,7 +80,7 @@ pub fn tracks_view(cx: &mut Context) {
 
                         // Tracks
                         List::new(cx, StateSystem::ui_state.then(UiState::timeline_tracks), |cx, track_data|{
-                            track(cx, track_data);
+                            track(cx, track_data.index(), track_data);
                         }).row_between(Pixels(2.0));
                     });
                     
@@ -120,8 +120,15 @@ pub struct TracksViewState {
 }
 
 impl TracksViewState {
+    // Converts absolute cursor position into musical time
     pub fn cursor_to_musical(&self, cursorx: f32) -> MusicalTime {
         let beats = ((cursorx - self.posx) / self.width) * (self.end_time.0 - self.start_time.0) as f32;
+        MusicalTime::new(beats.into())
+    }
+
+    // Converts delta cursor movement into musical time
+    pub fn delta_to_musical(&self, cursorx: f32) -> MusicalTime {
+        let beats = (cursorx / self.width) * (self.end_time.0 - self.start_time.0) as f32;
         MusicalTime::new(beats.into())
     }
 }

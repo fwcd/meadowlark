@@ -21,6 +21,9 @@ pub use track::*;
 mod loop_region;
 pub use loop_region::*;
 
+mod clip;
+pub use clip::*;
+
 const STYLE: &str = r#"
     .divider {
         top: 1s;

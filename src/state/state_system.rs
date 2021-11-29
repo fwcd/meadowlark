@@ -154,6 +154,7 @@ impl StateSystem {
         }
     }
 
+    // FIX ME
     pub fn set_loop_end(&mut self, new_loop_end: MusicalTime) {
 
         let loop_start = match &mut self.ui_state.timeline_transport.loop_state {
@@ -183,6 +184,7 @@ impl StateSystem {
         }
     }
 
+    // FIX ME
     pub fn set_loop_start(&mut self, new_loop_start: MusicalTime) {
 
         let loop_end = match &mut self.ui_state.timeline_transport.loop_state {
@@ -209,6 +211,25 @@ impl StateSystem {
                     project.backend_handle.timeline_transport_mut(&mut project.save_state.backend);
             transport.set_loop_state(LoopState::Active {loop_start: new_loop_start, loop_end }, &mut project.save_state.backend.timeline_transport);
         }
+    }
+
+    // Set the start position of a clip in musical time
+    pub fn set_clip_start(&mut self, track_id: usize, clip_id: usize, timeline_start: MusicalTime)  {
+
+        if let Some(track_state) = self.ui_state.timeline_tracks.get_mut(track_id) {
+            if let Some(clip_state) = track_state.audio_clips.get_mut(clip_id) {
+                clip_state.timeline_start = timeline_start;
+            }
+        }
+        
+        // TODO - hook up to backend
+        // if let Some(project) = &mut self.project {
+        //     if let Some((_, track)) = project.timeline_track_handles.get(track_id) {
+        //         if let Some((clip_handle, clip_save_state)) = track.audio_clip_mut(clip_id, project.save_state.timeline_tracks.get_mut(track_id).unwrap()) {
+        //             clip_handle.set_timeline_start(timeline_start, &project.backend_handle.timeline_transport(&project.save_state.backend).0.tempo_map, clip_save_state);
+        //         }
+        //     }
+        // }
     }
 
     pub fn timeline_transport_play(&mut self) {
@@ -274,6 +295,10 @@ pub enum AppEvent {
     // Loop Controls
     SetLoopStart(MusicalTime),
     SetLoopEnd(MusicalTime),
+
+    // Clip Controls
+    // TODO - create types for track id and clip id
+    SetClipStart(usize, usize, MusicalTime),
 }
 
 
@@ -317,6 +342,11 @@ impl Model for StateSystem {
 
                 AppEvent::SetLoopEnd(loop_end) => {
                     self.set_loop_end(*loop_end);
+                }
+
+                // CLIP
+                AppEvent::SetClipStart(track_id, clip_id, timeline_start) => {
+                    self.set_clip_start(*track_id, *clip_id, *timeline_start);
                 }
             }
         }
