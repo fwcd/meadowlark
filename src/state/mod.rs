@@ -4,4 +4,4 @@ mod state_system;
 pub mod ui_state;
 
 pub use project_save_state::ProjectSaveState;
-pub use state_system::{Project, StateSystem, AppEvent};
+pub use state_system::{AppEvent, Project, StateSystem};

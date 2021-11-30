@@ -8,7 +8,7 @@ use rusty_daw_core::{MusicalTime, SampleRate, SampleTime};
 use crate::backend::MAX_BLOCKSIZE;
 
 use super::audio_clip::AudioClipDeclick;
-use super::{TempoMap, TimelineTransportSaveState};
+use super::{TempoMap, TimelineTransportState};
 
 pub struct TimelineTransportHandle {
     parameters: Shared<SharedCell<Parameters>>,
@@ -26,8 +26,8 @@ pub struct TimelineTransportHandle {
 }
 
 impl TimelineTransportHandle {
-    pub fn seek_to(&mut self, seek_to: MusicalTime, save_state: &mut TimelineTransportSaveState) {
-        save_state.seek_to = seek_to;
+    pub fn seek_to(&mut self, seek_to: MusicalTime, state: &mut TimelineTransportState) {
+        state.seek_to = seek_to;
 
         let mut params = Parameters::clone(&self.parameters.get());
         params.seek_to = (seek_to, params.seek_to.1 + 1);
@@ -46,7 +46,7 @@ impl TimelineTransportHandle {
     pub fn set_loop_state(
         &mut self,
         loop_state: LoopState,
-        save_state: &mut TimelineTransportSaveState,
+        state: &mut TimelineTransportState,
     ) -> Result<(), ()> {
         if let LoopState::Active { loop_start, loop_end } = loop_state {
             let loop_start_smp = self.tempo_map.musical_to_nearest_sample_round(loop_start);
@@ -58,7 +58,7 @@ impl TimelineTransportHandle {
             }
         }
 
-        save_state.loop_state = loop_state;
+        state.loop_state = loop_state;
 
         let mut params = Parameters::clone(&self.parameters.get());
         params.loop_state = (loop_state, params.loop_state.1 + 1);
@@ -145,25 +145,25 @@ impl Debug for TimelineTransport {
 
 impl TimelineTransport {
     pub fn new(coll_handle: Handle, sample_rate: SampleRate) -> (Self, TimelineTransportHandle) {
-        let save_state = TimelineTransportSaveState::default();
+        let state = TimelineTransportState::default();
 
         let parameters = Shared::new(
             &coll_handle,
             SharedCell::new(Shared::new(
                 &coll_handle,
                 Parameters {
-                    seek_to: (save_state.seek_to, 0),
+                    seek_to: (state.seek_to, 0),
                     is_playing: false,
-                    loop_state: (save_state.loop_state, 0),
+                    loop_state: (state.loop_state, 0),
                 },
             )),
         );
 
         let tempo_map = TempoMap::new(120.0, sample_rate);
 
-        let playhead = tempo_map.musical_to_nearest_sample_round(save_state.seek_to);
+        let playhead = tempo_map.musical_to_nearest_sample_round(state.seek_to);
         let playhead_shared = Arc::new(AtomicI64::new(playhead.0));
-        let loop_state = save_state.loop_state.to_proc_info(&tempo_map);
+        let loop_state = state.loop_state.to_proc_info(&tempo_map);
 
         let tempo_map = Shared::new(&coll_handle, tempo_map);
         let tempo_map_shared = Shared::new(
@@ -198,7 +198,7 @@ impl TimelineTransport {
                 tempo_map_version: 0,
                 playhead_shared,
                 playhead_smps: playhead,
-                playhead: save_state.seek_to,
+                playhead: state.seek_to,
             },
         )
     }

@@ -1,13 +1,13 @@
 use rusty_daw_core::{MusicalTime, SampleRate, Seconds};
-use vizia::{Data, Lens, Model};
 use std::path::PathBuf;
+use vizia::{Data, Lens, Model};
 
-use crate::backend::timeline::{AudioClipSaveState, LoopState};
+use crate::backend::timeline::{AudioClipState, LoopState};
 
 /// This struct should contain all state that the UI will bind to. This should
-/// mirror the `ProjectSaveState` plus whatever extra state is needed for the UI.
+/// mirror the `ProjectState` plus whatever extra state is needed for the UI.
 ///
-/// (Yes we are duplicating state from `ProjectSaveState`). This is for a couple
+/// (Yes we are duplicating state from `ProjectState`). This is for a couple
 /// of reasons:
 ///
 /// 1. This separates areas of concerns, so the UI can be developed independently
@@ -51,9 +51,7 @@ impl Default for UiState {
     }
 }
 
-impl Model for UiState {
-    
-}
+impl Model for UiState {}
 
 #[derive(Lens)]
 pub struct TempoMapUiState {
@@ -61,10 +59,7 @@ pub struct TempoMapUiState {
     pub bpm: f64,
 }
 
-impl Model for TempoMapUiState {
-
-}
-
+impl Model for TempoMapUiState {}
 
 #[derive(Clone, Data, Lens)]
 pub struct TimelineTransportUiState {
@@ -75,9 +70,7 @@ pub struct TimelineTransportUiState {
     pub playhead: MusicalTime,
 }
 
-impl Model for TimelineTransportUiState {
-
-}
+impl Model for TimelineTransportUiState {}
 
 impl Default for TimelineTransportUiState {
     fn default() -> Self {
@@ -125,10 +118,7 @@ pub struct TimelineTrackUiState {
     pub audio_clips: Vec<AudioClipUiState>,
 }
 
-impl Model for TimelineTrackUiState {
-
-}
-
+impl Model for TimelineTrackUiState {}
 
 #[derive(Clone, Data, Lens)]
 pub struct AudioClipUiState {
@@ -155,12 +145,10 @@ pub struct AudioClipUiState {
     pub fades: AudioClipFadesUiState,
 }
 
-impl Model for AudioClipUiState {
+impl Model for AudioClipUiState {}
 
-}
-
-impl From<&AudioClipSaveState> for AudioClipUiState {
-    fn from(a: &AudioClipSaveState) -> Self {
+impl From<&AudioClipState> for AudioClipUiState {
+    fn from(a: &AudioClipState) -> Self {
         Self {
             name: a.name.clone(),
             pcm_path: a.pcm_path.clone(),
@@ -182,6 +170,4 @@ pub struct AudioClipFadesUiState {
     pub end_fade_duration: Seconds,
 }
 
-impl Model for AudioClipFadesUiState {
-    
-}
+impl Model for AudioClipFadesUiState {}

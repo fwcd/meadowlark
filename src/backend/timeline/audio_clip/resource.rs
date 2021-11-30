@@ -5,7 +5,7 @@ use std::sync::{Arc, Mutex};
 use basedrop::{Handle, Shared};
 use rusty_daw_core::{SampleRate, SampleTime};
 
-use super::AudioClipSaveState;
+use super::AudioClipState;
 use crate::backend::dsp::resample;
 use crate::backend::resource_loader::{AnyPcm, MonoPcm, PcmLoadError, ResourceLoader, StereoPcm};
 use crate::util::TwoXHashMap;
@@ -100,7 +100,7 @@ impl AudioClipResourceCache {
 
     pub fn cache(
         &mut self,
-        state: &AudioClipSaveState,
+        state: &AudioClipState,
         resource_loader: &Arc<Mutex<ResourceLoader>>,
     ) -> (Shared<AudioClipResource>, Result<(), PcmLoadError>) {
         // Load the resource from disk / retrieve from cache.

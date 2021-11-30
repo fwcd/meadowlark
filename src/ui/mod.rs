@@ -1,5 +1,5 @@
-use vizia::*;
 use image::GenericImageView;
+use vizia::*;
 
 use crate::state::{AppEvent, ProjectSaveState, StateSystem};
 
@@ -44,9 +44,7 @@ const STYLE: &str = r#"
     }
 "#;
 
-
 pub fn run() {
-
     let icon = image::open("./assets/branding/meadowlark-logo-32.png").unwrap();
 
     let window_description = WindowDescription::new()
@@ -54,7 +52,7 @@ pub fn run() {
         .with_inner_size(1280, 720)
         .with_icon(icon.to_bytes(), icon.width(), icon.height());
 
-    let app = Application::new(window_description, |cx|{
+    let app = Application::new(window_description, |cx| {
         let project_save_state = Box::new(ProjectSaveState::test());
         let mut state_system = StateSystem::new();
         state_system.load_project(&project_save_state);
@@ -63,28 +61,28 @@ pub fn run() {
 
         cx.add_theme(STYLE);
 
-        VStack::new(cx, |cx|{
+        VStack::new(cx, |cx| {
             // Top bar controls
-            HStack::new(cx, |cx|{
+            HStack::new(cx, |cx| {
                 tempo_controls(cx).width(Pixels(300.0));
                 Element::new(cx).class("divider");
                 transport_controls(cx);
-            }).height(Pixels(70.0)).background_color(Color::rgb(63,57,59)).bottom(Pixels(1.0));
+            })
+            .height(Pixels(70.0))
+            .background_color(Color::rgb(63, 57, 59))
+            .bottom(Pixels(1.0));
 
             // Tracks View
             tracks_view(cx);
-        }).background_color(Color::rgb(10, 10, 10));
-
-
+        })
+        .background_color(Color::rgb(10, 10, 10));
     });
 
     let proxy = app.get_proxy();
 
-    std::thread::spawn(move ||{
-        loop {
-            proxy.send_event(Event::new(AppEvent::Sync)).expect("Failed to send proxy event");
-            std::thread::sleep(std::time::Duration::from_millis(16));
-        }
+    std::thread::spawn(move || loop {
+        proxy.send_event(Event::new(AppEvent::Sync)).expect("Failed to send proxy event");
+        std::thread::sleep(std::time::Duration::from_millis(16));
     });
 
     // .on_idle(|cx|{

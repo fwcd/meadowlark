@@ -6,7 +6,7 @@ use rusty_daw_core::{MusicalTime, SampleRate};
 use vizia::{Lens, Model};
 
 use crate::backend::timeline::{LoopState, TimelineTrackHandle, TimelineTrackNode};
-use crate::backend::{BackendHandle, ResourceLoadError};
+use crate::backend::{BackendCoreHandle, BackendCoreState, ResourceLoadError};
 
 use super::ui_state::{LoopUiState, TimelineTrackUiState, UiState};
 use super::ProjectSaveState;
@@ -14,7 +14,7 @@ use super::ProjectSaveState;
 pub struct Project {
     stream: Stream,
     save_state: ProjectSaveState,
-    backend_handle: BackendHandle,
+    backend_core_handle: BackendCoreHandle,
     timeline_track_handles: Vec<(NodeRef, TimelineTrackHandle)>,
 }
 
@@ -32,18 +32,14 @@ pub struct StateSystem {
 
 impl StateSystem {
     pub fn new() -> Self {
-        Self { 
-            project: None,
-            ui_state: UiState::default(),
-            undo_stack: VecDeque::new(),
-        }
+        Self { project: None, ui_state: UiState::default(), undo_stack: VecDeque::new() }
     }
 
     pub fn get_ui_state(&self) -> &UiState {
         &self.ui_state
     }
 
-    pub fn load_project(&mut self, project_save_state: &Box<ProjectSaveState>) {
+    pub fn load_project(&mut self, project_state: &Box<ProjectSaveState>) {
         // This will drop and automatically close any already active project.
         self.project = None;
 
@@ -57,40 +53,40 @@ impl StateSystem {
             crate::backend::hardware_io::default_sample_rate().unwrap_or(SampleRate::default());
 
         let mut save_state = ProjectSaveState {
-            backend: project_save_state.backend.clone_with_sample_rate(sample_rate),
-            timeline_tracks: Vec::with_capacity(project_save_state.timeline_tracks.len()),
+            backend_core: project_state.backend_core.clone_with_sample_rate(sample_rate),
+            timeline_tracks: Vec::with_capacity(project_state.timeline_tracks.len()),
         };
 
-        let (mut backend_handle, rt_state) =
-            BackendHandle::from_save_state(sample_rate, &mut save_state.backend);
+        let (mut backend_core_handle, rt_state) =
+            BackendCoreHandle::from_state(sample_rate, &mut save_state.backend_core);
 
         let mut timeline_track_handles: Vec<(NodeRef, TimelineTrackHandle)> = Vec::new();
         let mut resource_load_errors: Vec<ResourceLoadError> = Vec::new();
 
         //This function is temporary. Eventually we should use rusty-daw-io instead.
         if let Ok(stream) = crate::backend::rt_thread::run_with_default_output(rt_state) {
-            self.ui_state.tempo_map.bpm = project_save_state.backend.tempo_map.bpm();
+            self.ui_state.tempo_map.bpm = project_state.backend_core.tempo_map.bpm();
             self.ui_state.sample_rate = sample_rate;
             self.ui_state.timeline_transport.seek_to =
-                project_save_state.backend.timeline_transport.seek_to;
+                project_state.backend_core.timeline_transport.seek_to;
             self.ui_state.timeline_transport.loop_state =
-                project_save_state.backend.timeline_transport.loop_state.into();
+                project_state.backend_core.timeline_transport.loop_state.into();
 
             // TODO: errors and reverting to previous working state
-            backend_handle
+            backend_core_handle
                 .modify_graph(|mut graph, resource_cache| {
                     let root_node_ref = graph.root_node();
 
-                    for timeline_track_save_state in project_save_state.timeline_tracks.iter() {
+                    for timeline_track_state in project_state.timeline_tracks.iter() {
                         // --- Load timeline track in backend ----------------------
 
-                        save_state.timeline_tracks.push(timeline_track_save_state.clone());
+                        save_state.timeline_tracks.push(timeline_track_state.clone());
 
                         let (timeline_track_node, timeline_track_handle, mut res) =
                             TimelineTrackNode::new(
-                                timeline_track_save_state,
+                                timeline_track_state,
                                 resource_cache,
-                                &project_save_state.backend.tempo_map,
+                                &project_state.backend_core.tempo_map,
                                 sample_rate,
                                 graph.coll_handle(),
                             );
@@ -122,8 +118,8 @@ impl StateSystem {
                         // --- Load timeline track in UI ---------------------------
 
                         self.ui_state.timeline_tracks.push(TimelineTrackUiState {
-                            name: timeline_track_save_state.name.clone(),
-                            audio_clips: timeline_track_save_state
+                            name: timeline_track_state.name.clone(),
+                            audio_clips: timeline_track_state
                                 .audio_clips
                                 .iter()
                                 .map(|s| s.into())
@@ -134,7 +130,7 @@ impl StateSystem {
                 .unwrap();
 
             self.project =
-                Some(Project { stream, save_state, backend_handle, timeline_track_handles });
+                Some(Project { stream, save_state, backend_core_handle, timeline_track_handles });
 
             self.ui_state.backend_loaded = true;
         } else {
@@ -150,86 +146,86 @@ impl StateSystem {
         self.ui_state.tempo_map.bpm = bpm;
 
         if let Some(project) = &mut self.project {
-            project.backend_handle.set_bpm(bpm, &mut project.save_state.backend);
+            project.backend_core_handle.set_bpm(bpm, &mut project.save_state.backend_core);
         }
     }
 
     // FIX ME
     pub fn set_loop_end(&mut self, new_loop_end: MusicalTime) {
-
         let loop_start = match &mut self.ui_state.timeline_transport.loop_state {
-            LoopUiState::Active { 
-                loop_start, 
-                loop_end, 
-            } => {
+            LoopUiState::Active { loop_start, loop_end } => {
                 *loop_end = new_loop_end;
                 *loop_start
             }
 
             LoopUiState::Inactive => {
-                self.ui_state.timeline_transport.loop_state = LoopUiState::Active {
-                    loop_start: new_loop_end,
-                    loop_end: new_loop_end,
-                };
+                self.ui_state.timeline_transport.loop_state =
+                    LoopUiState::Active { loop_start: new_loop_end, loop_end: new_loop_end };
 
                 new_loop_end
             }
         };
 
         if let Some(project) = &mut self.project {
-            let (transport, _) =
-                    project.backend_handle.timeline_transport_mut(&mut project.save_state.backend);
-            transport.set_loop_state(LoopState::Active {loop_start, loop_end: new_loop_end }, &mut project.save_state.backend.timeline_transport);
-            
+            let (transport, _) = project
+                .backend_core_handle
+                .timeline_transport_mut(&mut project.save_state.backend_core);
+            if let Err(_) = transport.set_loop_state(
+                LoopState::Active { loop_start, loop_end: new_loop_end },
+                &mut project.save_state.backend_core.timeline_transport,
+            ) {
+                // TODO: Handle this.
+            }
         }
     }
 
     // FIX ME
     pub fn set_loop_start(&mut self, new_loop_start: MusicalTime) {
-
         let loop_end = match &mut self.ui_state.timeline_transport.loop_state {
-            LoopUiState::Active { 
-                loop_start, 
-                loop_end, 
-            } => {
+            LoopUiState::Active { loop_start, loop_end } => {
                 *loop_start = new_loop_start;
                 *loop_end
             }
 
             LoopUiState::Inactive => {
-                self.ui_state.timeline_transport.loop_state = LoopUiState::Active {
-                    loop_start: new_loop_start,
-                    loop_end: new_loop_start,
-                };
+                self.ui_state.timeline_transport.loop_state =
+                    LoopUiState::Active { loop_start: new_loop_start, loop_end: new_loop_start };
 
                 new_loop_start
             }
         };
 
         if let Some(project) = &mut self.project {
-            let (transport, _) =
-                    project.backend_handle.timeline_transport_mut(&mut project.save_state.backend);
-            transport.set_loop_state(LoopState::Active {loop_start: new_loop_start, loop_end }, &mut project.save_state.backend.timeline_transport);
+            let (transport, _) = project
+                .backend_core_handle
+                .timeline_transport_mut(&mut project.save_state.backend_core);
+            if let Err(_) = transport.set_loop_state(
+                LoopState::Active { loop_start: new_loop_start, loop_end },
+                &mut project.save_state.backend_core.timeline_transport,
+            ) {
+                // TODO: Handle this.
+            }
         }
     }
 
     // Set the start position of a clip in musical time
-    pub fn set_clip_start(&mut self, track_id: usize, clip_id: usize, timeline_start: MusicalTime)  {
-
+    pub fn set_clip_start(&mut self, track_id: usize, clip_id: usize, timeline_start: MusicalTime) {
         if let Some(track_state) = self.ui_state.timeline_tracks.get_mut(track_id) {
             if let Some(clip_state) = track_state.audio_clips.get_mut(clip_id) {
                 clip_state.timeline_start = timeline_start;
             }
         }
-        
-        // TODO - hook up to backend
-        // if let Some(project) = &mut self.project {
-        //     if let Some((_, track)) = project.timeline_track_handles.get(track_id) {
-        //         if let Some((clip_handle, clip_save_state)) = track.audio_clip_mut(clip_id, project.save_state.timeline_tracks.get_mut(track_id).unwrap()) {
-        //             clip_handle.set_timeline_start(timeline_start, &project.backend_handle.timeline_transport(&project.save_state.backend).0.tempo_map, clip_save_state);
-        //         }
-        //     }
-        // }
+
+        if let Some(project) = &mut self.project {
+            if let Some((_, track)) = project.timeline_track_handles.get_mut(track_id) {
+                let (tempo_map, timeline_tracks_state) = project.save_state.timeline_tracks_mut();
+                if let Some((clip_handle, clip_state)) =
+                    track.audio_clip_mut(clip_id, timeline_tracks_state.get_mut(track_id).unwrap())
+                {
+                    clip_handle.set_timeline_start(timeline_start, tempo_map, clip_state);
+                }
+            }
+        }
     }
 
     pub fn timeline_transport_play(&mut self) {
@@ -237,8 +233,9 @@ impl StateSystem {
             if !self.ui_state.timeline_transport.is_playing {
                 self.ui_state.timeline_transport.is_playing = true;
 
-                let (transport, _) =
-                    project.backend_handle.timeline_transport_mut(&mut project.save_state.backend);
+                let (transport, _) = project
+                    .backend_core_handle
+                    .timeline_transport_mut(&mut project.save_state.backend_core);
                 transport.set_playing(true);
             }
         }
@@ -249,8 +246,9 @@ impl StateSystem {
             if self.ui_state.timeline_transport.is_playing {
                 self.ui_state.timeline_transport.is_playing = false;
 
-                let (transport, _) =
-                    project.backend_handle.timeline_transport_mut(&mut project.save_state.backend);
+                let (transport, _) = project
+                    .backend_core_handle
+                    .timeline_transport_mut(&mut project.save_state.backend_core);
                 transport.set_playing(false);
             }
         }
@@ -261,26 +259,26 @@ impl StateSystem {
         self.ui_state.timeline_transport.seek_to = 0.0.into();
 
         if let Some(project) = &mut self.project {
-            let (transport, save_state) =
-                project.backend_handle.timeline_transport_mut(&mut project.save_state.backend);
+            let (transport, transport_state) = project
+                .backend_core_handle
+                .timeline_transport_mut(&mut project.save_state.backend_core);
             transport.set_playing(false);
-            transport.seek_to(0.0.into(), save_state);
+            transport.seek_to(0.0.into(), transport_state);
         }
     }
 
     pub fn sync_playhead(&mut self) {
         if let Some(project) = &mut self.project {
-            let (transport, save_state) =
-                project.backend_handle.timeline_transport_mut(&mut project.save_state.backend);
+            let (transport, _) = project
+                .backend_core_handle
+                .timeline_transport_mut(&mut project.save_state.backend_core);
             self.ui_state.timeline_transport.playhead = transport.get_playhead_position();
         }
     }
 }
 
-
 #[derive(Debug)]
 pub enum AppEvent {
-
     // Force a sync
     Sync,
 
@@ -301,12 +299,10 @@ pub enum AppEvent {
     SetClipStart(usize, usize, MusicalTime),
 }
 
-
 impl Model for StateSystem {
     fn event(&mut self, cx: &mut vizia::Context, event: &mut vizia::Event) {
         if let Some(app_event) = event.message.downcast() {
             match app_event {
-
                 AppEvent::Sync => {
                     self.sync_playhead();
                 }
@@ -321,7 +317,6 @@ impl Model for StateSystem {
                 AppEvent::Play => {
                     println!("Play");
                     self.timeline_transport_play();
-                    
                 }
 
                 AppEvent::Pause => {

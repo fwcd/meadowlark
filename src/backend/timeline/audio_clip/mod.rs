@@ -11,7 +11,7 @@ use std::sync::{Arc, Mutex};
 use crate::backend::resource_loader::{AnyPcm, PcmLoadError, ResourceLoader};
 use crate::backend::{ResourceCache, MAX_BLOCKSIZE};
 
-use super::{AudioClipSaveState, TempoMap};
+use super::{AudioClipState, TempoMap};
 
 mod declick;
 mod resource;
@@ -113,19 +113,19 @@ pub struct AudioClipHandle {
 
 impl AudioClipHandle {
     /// Set the name displayed on this audio clip.
-    pub fn set_name(&mut self, name: String, save_state: &mut AudioClipSaveState) {
-        save_state.name = name;
+    pub fn set_name(&mut self, name: String, state: &mut AudioClipState) {
+        state.name = name;
     }
 
     /// Set the gain of this audio clip.
     ///
     /// Returns the gain (this may be clamped to fit within range of the gain parameter).
-    pub fn set_clip_gain_db(&mut self, gain_db: f32, save_state: &mut AudioClipSaveState) -> f32 {
+    pub fn set_clip_gain_db(&mut self, gain_db: f32, state: &mut AudioClipState) -> f32 {
         self.clip_gain_db.set_value(gain_db);
 
         // Make sure value is clamped within range.
         let gain_db = self.clip_gain_db.value();
-        save_state.clip_gain_db = gain_db;
+        state.clip_gain_db = gain_db;
 
         gain_db
     }
@@ -135,17 +135,16 @@ impl AudioClipHandle {
         &mut self,
         timeline_start: MusicalTime,
         tempo_map: &TempoMap,
-        save_state: &mut AudioClipSaveState,
+        state: &mut AudioClipState,
     ) {
-        save_state.timeline_start = timeline_start;
+        state.timeline_start = timeline_start;
 
         let mut new_info = AudioClipProcInfo::clone(&self.info.get());
-        new_info.timeline_start =
-            tempo_map.musical_to_nearest_sample_round(save_state.timeline_start);
+        new_info.timeline_start = tempo_map.musical_to_nearest_sample_round(state.timeline_start);
         new_info.timeline_end = tempo_map.seconds_to_nearest_sample_round(
-            tempo_map.musical_to_seconds(save_state.timeline_start) + save_state.duration,
+            tempo_map.musical_to_seconds(state.timeline_start) + state.duration,
         );
-        new_info.fades = save_state.fades.to_proc_info(
+        new_info.fades = state.fades.to_proc_info(
             tempo_map.sample_rate,
             new_info.timeline_start,
             new_info.timeline_end,
@@ -159,15 +158,15 @@ impl AudioClipHandle {
         &mut self,
         duration: Seconds,
         tempo_map: &TempoMap,
-        save_state: &mut AudioClipSaveState,
+        state: &mut AudioClipState,
     ) {
-        save_state.duration = duration;
+        state.duration = duration;
 
         let mut new_info = AudioClipProcInfo::clone(&self.info.get());
         new_info.timeline_end = tempo_map.seconds_to_nearest_sample_round(
-            tempo_map.musical_to_seconds(save_state.timeline_start) + save_state.duration,
+            tempo_map.musical_to_seconds(state.timeline_start) + state.duration,
         );
-        new_info.fades = save_state.fades.to_proc_info(
+        new_info.fades = state.fades.to_proc_info(
             tempo_map.sample_rate,
             new_info.timeline_start,
             new_info.timeline_end,
@@ -181,9 +180,9 @@ impl AudioClipHandle {
         &mut self,
         clip_start_offset: Seconds,
         tempo_map: &TempoMap,
-        save_state: &mut AudioClipSaveState,
+        state: &mut AudioClipState,
     ) {
-        save_state.clip_start_offset = clip_start_offset;
+        state.clip_start_offset = clip_start_offset;
 
         let mut new_info = AudioClipProcInfo::clone(&self.info.get());
         new_info.clip_start_offset =
@@ -198,11 +197,11 @@ impl AudioClipHandle {
         pcm_path: PathBuf,
         resource_loader: &Arc<Mutex<ResourceLoader>>,
         cache: &Arc<Mutex<AudioClipResourceCache>>,
-        save_state: &mut AudioClipSaveState,
+        state: &mut AudioClipState,
     ) -> Result<(), PcmLoadError> {
-        let (resource, pcm_load_res) = { cache.lock().unwrap().cache(save_state, resource_loader) };
+        let (resource, pcm_load_res) = { cache.lock().unwrap().cache(state, resource_loader) };
 
-        save_state.pcm_path = pcm_path;
+        state.pcm_path = pcm_path;
 
         let mut new_info = AudioClipProcInfo::clone(&self.info.get());
         new_info.resource = resource;
@@ -216,9 +215,9 @@ impl AudioClipHandle {
         &mut self,
         fades: AudioClipFades,
         tempo_map: &TempoMap,
-        save_state: &mut AudioClipSaveState,
+        state: &mut AudioClipState,
     ) {
-        save_state.fades = fades;
+        state.fades = fades;
 
         let mut new_info = AudioClipProcInfo::clone(&self.info.get());
         new_info.fades = fades.to_proc_info(
@@ -230,18 +229,13 @@ impl AudioClipHandle {
         self.info.set(Shared::new(&self.coll_handle, new_info));
     }
 
-    pub(super) fn update_tempo_map(
-        &mut self,
-        tempo_map: &TempoMap,
-        save_state: &AudioClipSaveState,
-    ) {
+    pub(super) fn update_tempo_map(&mut self, tempo_map: &TempoMap, state: &AudioClipState) {
         let mut new_info = AudioClipProcInfo::clone(&self.info.get());
-        new_info.timeline_start =
-            tempo_map.musical_to_nearest_sample_round(save_state.timeline_start);
+        new_info.timeline_start = tempo_map.musical_to_nearest_sample_round(state.timeline_start);
         new_info.timeline_end = tempo_map.seconds_to_nearest_sample_round(
-            tempo_map.musical_to_seconds(save_state.timeline_start) + save_state.duration,
+            tempo_map.musical_to_seconds(state.timeline_start) + state.duration,
         );
-        new_info.fades = save_state.fades.to_proc_info(
+        new_info.fades = state.fades.to_proc_info(
             tempo_map.sample_rate,
             new_info.timeline_start,
             new_info.timeline_end,
@@ -281,13 +275,12 @@ pub struct AudioClipProcess {
 
 impl AudioClipProcess {
     pub fn new(
-        save_state: &AudioClipSaveState,
+        state: &AudioClipState,
         resource_cache: &ResourceCache,
         tempo_map: &TempoMap,
         coll_handle: &Handle,
     ) -> (Self, AudioClipHandle, Result<(), PcmLoadError>) {
-        let clip_gain_db =
-            save_state.clip_gain_db.clamp(AUDIO_CLIP_GAIN_MIN_DB, AUDIO_CLIP_GAIN_MAX_DB);
+        let clip_gain_db = state.clip_gain_db.clamp(AUDIO_CLIP_GAIN_MIN_DB, AUDIO_CLIP_GAIN_MAX_DB);
 
         let (gain_amp, gain_handle) = ParamF32::from_value(
             clip_gain_db,
@@ -304,12 +297,12 @@ impl AudioClipProcess {
                 .audio_clip_resource_cache
                 .lock()
                 .unwrap()
-                .cache(save_state, &resource_cache.resource_loader)
+                .cache(state, &resource_cache.resource_loader)
         };
 
-        let timeline_start = tempo_map.musical_to_nearest_sample_round(save_state.timeline_start);
+        let timeline_start = tempo_map.musical_to_nearest_sample_round(state.timeline_start);
         let timeline_end = tempo_map.seconds_to_nearest_sample_round(
-            tempo_map.musical_to_seconds(save_state.timeline_start) + save_state.duration,
+            tempo_map.musical_to_seconds(state.timeline_start) + state.duration,
         );
 
         let info = Shared::new(
@@ -320,10 +313,10 @@ impl AudioClipProcess {
                     resource,
                     timeline_start,
                     timeline_end,
-                    clip_start_offset: save_state
+                    clip_start_offset: state
                         .clip_start_offset
                         .to_nearest_sample_round(tempo_map.sample_rate),
-                    fades: save_state.fades.to_proc_info(
+                    fades: state.fades.to_proc_info(
                         tempo_map.sample_rate,
                         timeline_start,
                         timeline_end,

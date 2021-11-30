@@ -1,7 +1,9 @@
 use vizia::*;
 
-use crate::state::{AppEvent, StateSystem, ui_state::{TempoMapUiState, UiState}};
-
+use crate::state::{
+    ui_state::{TempoMapUiState, UiState},
+    AppEvent, StateSystem,
+};
 
 const STYLE: &str = r#"
     slider {
@@ -31,15 +33,18 @@ const STYLE: &str = r#"
 "#;
 
 pub fn tempo_controls(cx: &mut Context) -> Handle<VStack> {
-
     cx.add_theme(STYLE);
 
-    VStack::new(cx, |cx|{
+    VStack::new(cx, |cx| {
         Label::new(cx, "TEMPO");
-        HStack::new(cx, |cx|{
-            Binding::new(cx, StateSystem::ui_state.then(UiState::tempo_map).then(TempoMapUiState::bpm), |cx, bpm|{
-                Label::new(cx, &format!("{:.*}", 2, bpm.get(cx))).width(Pixels(60.0));
-            });
+        HStack::new(cx, |cx| {
+            Binding::new(
+                cx,
+                StateSystem::ui_state.then(UiState::tempo_map).then(TempoMapUiState::bpm),
+                |cx, bpm| {
+                    Label::new(cx, &format!("{:.*}", 2, bpm.get(cx))).width(Pixels(60.0));
+                },
+            );
             let init = (120.0 - 20.0) / 180.0;
             // TODO - Replace with appropriate widget
             // Slider::new(cx, init, Orientation::Horizontal)
@@ -52,6 +57,9 @@ pub fn tempo_controls(cx: &mut Context) -> Handle<VStack> {
             Label::new(cx, "TAP").width(Pixels(50.0));
             Label::new(cx, "4/4").width(Pixels(50.0));
             Label::new(cx, "Groove").width(Pixels(50.0));
-        }).child_top(Stretch(1.0)).child_bottom(Stretch(1.0));
-    }).child_space(Pixels(10.0))
+        })
+        .child_top(Stretch(1.0))
+        .child_bottom(Stretch(1.0));
+    })
+    .child_space(Pixels(10.0))
 }

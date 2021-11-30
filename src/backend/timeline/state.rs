@@ -4,30 +4,30 @@ use std::path::PathBuf;
 use super::{AudioClipFades, LoopState};
 
 #[derive(Debug, Clone, Copy)]
-pub struct TimelineTransportSaveState {
+pub struct TimelineTransportState {
     /// The place where the playhead will seek to on project load/transport stop.
     pub seek_to: MusicalTime,
     pub loop_state: LoopState,
 }
 
-impl Default for TimelineTransportSaveState {
+impl Default for TimelineTransportState {
     fn default() -> Self {
         Self { seek_to: MusicalTime::new(0.0), loop_state: LoopState::Inactive }
     }
 }
 
 #[derive(Debug, Clone)]
-pub struct TimelineTrackSaveState {
+pub struct TimelineTrackState {
     /// The name displayed on this timeline track.
     pub name: String,
 
     /// The audio clips on this timeline track. These may not be
     /// in any particular order.
-    pub audio_clips: Vec<AudioClipSaveState>,
+    pub audio_clips: Vec<AudioClipState>,
 }
 
 #[derive(Debug, Clone)]
-pub struct AudioClipSaveState {
+pub struct AudioClipState {
     /// The name displayed on the audio clip.
     pub name: String,
 

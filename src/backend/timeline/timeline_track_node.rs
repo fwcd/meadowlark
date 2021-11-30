@@ -7,9 +7,7 @@ use rusty_daw_core::{SampleRate, SampleTime, SmoothOutputF32};
 use crate::backend::resource_loader::{PcmLoadError, ResourceLoadError};
 use crate::backend::{GlobalNodeData, ResourceCache, MAX_BLOCKSIZE};
 
-use super::{
-    AudioClipHandle, AudioClipProcess, AudioClipSaveState, TempoMap, TimelineTrackSaveState,
-};
+use super::{AudioClipHandle, AudioClipProcess, AudioClipState, TempoMap, TimelineTrackState};
 
 pub struct TimelineTrackHandle {
     audio_clip_handles: Vec<AudioClipHandle>,
@@ -22,18 +20,18 @@ pub struct TimelineTrackHandle {
 
 impl TimelineTrackHandle {
     /// Set the name displayed on this timeline track.
-    pub fn set_name(&mut self, name: String, save_state: &mut TimelineTrackSaveState) {
-        save_state.name = name;
+    pub fn set_name(&mut self, name: String, state: &mut TimelineTrackState) {
+        state.name = name;
     }
 
     /// Return an immutable handle to the audio clip with the given index.
     pub fn audio_clip<'a>(
         &'a self,
         index: usize,
-        save_state: &'a TimelineTrackSaveState,
-    ) -> Option<(&'a AudioClipHandle, &'a AudioClipSaveState)> {
+        state: &'a TimelineTrackState,
+    ) -> Option<(&'a AudioClipHandle, &'a AudioClipState)> {
         if let Some(audio_clip) = self.audio_clip_handles.get(index) {
-            Some((audio_clip, &save_state.audio_clips[index]))
+            Some((audio_clip, &state.audio_clips[index]))
         } else {
             None
         }
@@ -43,10 +41,10 @@ impl TimelineTrackHandle {
     pub fn audio_clip_mut<'a>(
         &'a mut self,
         index: usize,
-        save_state: &'a mut TimelineTrackSaveState,
-    ) -> Option<(&'a mut AudioClipHandle, &'a mut AudioClipSaveState)> {
+        state: &'a mut TimelineTrackState,
+    ) -> Option<(&'a mut AudioClipHandle, &'a mut AudioClipState)> {
         if let Some(audio_clip) = self.audio_clip_handles.get_mut(index) {
-            Some((audio_clip, &mut save_state.audio_clips[index]))
+            Some((audio_clip, &mut state.audio_clips[index]))
         } else {
             None
         }
@@ -55,10 +53,10 @@ impl TimelineTrackHandle {
     /// Add a new audio clip to this track.
     pub fn add_audio_clip(
         &mut self,
-        clip: AudioClipSaveState,
+        clip: AudioClipState,
         resource_cache: &ResourceCache,
         tempo_map: &TempoMap,
-        save_state: &mut TimelineTrackSaveState,
+        state: &mut TimelineTrackState,
     ) -> Result<(), PcmLoadError> {
         let (audio_clip_proc, params_handle, pcm_load_res) =
             AudioClipProcess::new(&clip, resource_cache, tempo_map, &self.coll_handle);
@@ -78,7 +76,7 @@ impl TimelineTrackHandle {
         self.process.set(Shared::new(&self.coll_handle, new_process));
 
         self.audio_clip_handles.push(params_handle);
-        save_state.audio_clips.push(clip);
+        state.audio_clips.push(clip);
 
         pcm_load_res
     }
@@ -87,14 +85,14 @@ impl TimelineTrackHandle {
     pub fn remove_audio_clip(
         &mut self,
         index: usize,
-        save_state: &mut TimelineTrackSaveState,
+        state: &mut TimelineTrackState,
     ) -> Result<(), ()> {
         if index >= self.audio_clip_handles.len() {
             return Err(());
         }
 
         self.audio_clip_handles.remove(index);
-        save_state.audio_clips.remove(index);
+        state.audio_clips.remove(index);
 
         // Compile the new process.
 
@@ -113,12 +111,8 @@ impl TimelineTrackHandle {
         Ok(())
     }
 
-    pub(super) fn update_tempo_map(
-        &mut self,
-        tempo_map: &TempoMap,
-        save_state: &TimelineTrackSaveState,
-    ) {
-        for (clip, save) in self.audio_clip_handles.iter_mut().zip(save_state.audio_clips.iter()) {
+    pub(super) fn update_tempo_map(&mut self, tempo_map: &TempoMap, state: &TimelineTrackState) {
+        for (clip, save) in self.audio_clip_handles.iter_mut().zip(state.audio_clips.iter()) {
             clip.update_tempo_map(tempo_map, save);
         }
     }
@@ -131,7 +125,7 @@ pub struct TimelineTrackNode {
 
 impl TimelineTrackNode {
     pub fn new(
-        save_state: &TimelineTrackSaveState,
+        state: &TimelineTrackState,
         resource_cache: &ResourceCache,
         tempo_map: &TempoMap,
         sample_rate: SampleRate,
@@ -141,7 +135,7 @@ impl TimelineTrackNode {
         let mut audio_clip_errors = Vec::<ResourceLoadError>::new();
         let mut audio_clip_handles = Vec::<AudioClipHandle>::new();
 
-        for audio_clip_save in save_state.audio_clips.iter() {
+        for audio_clip_save in state.audio_clips.iter() {
             let (process, handle, res) =
                 AudioClipProcess::new(audio_clip_save, resource_cache, tempo_map, coll_handle);
 
