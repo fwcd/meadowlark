@@ -352,7 +352,8 @@ impl Model for StateSystem {
 
                 // CLIP
                 AppEvent::SetClipStart(track_id, clip_id, timeline_start) => {
-                    self.set_clip_start(*track_id, *clip_id, *timeline_start);
+                    let timeline_start = MusicalTime::new(timeline_start.0.max(0.0));
+                    self.set_clip_start(*track_id, *clip_id, timeline_start);
                 }
             }
         }
