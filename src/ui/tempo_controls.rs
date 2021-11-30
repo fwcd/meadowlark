@@ -2,7 +2,7 @@ use vizia::*;
 
 use crate::state::{
     ui_state::{TempoMapUiState, UiState},
-    AppEvent, StateSystem,
+    StateSystem,
 };
 
 const STYLE: &str = r#"
@@ -45,7 +45,7 @@ pub fn tempo_controls(cx: &mut Context) -> Handle<VStack> {
                     Label::new(cx, &format!("{:.*}", 2, bpm.get(cx))).width(Pixels(60.0));
                 },
             );
-            let init = (120.0 - 20.0) / 180.0;
+            // let init = (120.0 - 20.0) / 180.0;
             // TODO - Replace with appropriate widget
             // Slider::new(cx, init, Orientation::Horizontal)
             //     .on_changing(cx, |cx, val| {

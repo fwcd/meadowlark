@@ -46,7 +46,7 @@ pub fn tracks_view(cx: &mut Context) {
 
                         // Grid lines
                         for i in 0..20 {
-                            let ratio = (i as f64 - start_beats.0) / (end_beats.0 - start_beats.0);
+                            let ratio = (i as f64 - start_beats.0) / timeline_beats.0;
                             Element::new(cx)
                                 .width(Pixels(1.0))
                                 .left(Percentage(ratio as f32 * 100.0))
@@ -162,7 +162,7 @@ impl TracksViewState {
 }
 
 impl Model for TracksViewState {
-    fn event(&mut self, cx: &mut Context, event: &mut Event) {
+    fn event(&mut self, _: &mut Context, event: &mut Event) {
         if let Some(track_view_event) = event.message.downcast() {
             match track_view_event {
                 TracksViewEvent::SetWidth(val) => {

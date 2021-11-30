@@ -1,6 +1,6 @@
 use vizia::*;
 
-use crate::state::{AppEvent, StateSystem};
+use crate::state::AppEvent;
 
 // Handles keyboard events and translates them to app events
 // TODO - This should probably be part of vizia?
@@ -26,7 +26,7 @@ impl View for Keymap {
     fn event(&mut self, cx: &mut Context, event: &mut vizia::Event) {
         if let Some(window_event) = event.message.downcast() {
             match window_event {
-                WindowEvent::KeyDown(code, key) => match code {
+                WindowEvent::KeyDown(code, _) => match code {
                     Code::Space => {
                         cx.emit(AppEvent::PlayPause);
                     }

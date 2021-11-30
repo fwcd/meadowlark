@@ -34,7 +34,6 @@ pub fn transport_controls(cx: &mut Context) {
                 },
             );
 
-            let init = (130.0 - 20.0) / 180.0;
             Binding::new(
                 cx,
                 StateSystem::ui_state

@@ -1,7 +1,7 @@
 use vizia::*;
 
 use crate::state::{
-    ui_state::{TempoMapUiState, TimelineSelectionUiState, TimelineTrackUiState, UiState},
+    ui_state::{TempoMapUiState, TimelineTrackUiState, UiState},
     StateSystem,
 };
 
@@ -27,10 +27,9 @@ where
                             let clip_start = clip.timeline_start.clone();
                             let clip_name = clip.name.clone();
                             let duration = clip.duration.to_musical(*bpm.get(cx) as f64);
-                            let mut width_ratio = duration.0 / (end_beats.0 - start_beats.0);
+                            let mut width_ratio = duration.0 / timeline_beats.0;
                             width_ratio = width_ratio.clamp(0.0, 1.0);
-                            let mut ratio =
-                                (clip_start.0 - start_beats.0) / (end_beats.0 - start_beats.0);
+                            let mut ratio = (clip_start.0 - start_beats.0) / timeline_beats.0;
                             ratio = ratio.clamp(0.0, 1.0);
 
                             Clip::new(cx, track_id, clip_id, clip_name, clip_start)

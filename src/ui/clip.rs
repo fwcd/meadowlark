@@ -96,7 +96,7 @@ pub enum ClipEvent {
 }
 
 impl Model for ClipData {
-    fn event(&mut self, cx: &mut Context, event: &mut Event) {
+    fn event(&mut self, _: &mut Context, event: &mut Event) {
         if let Some(clip_event) = event.message.downcast() {
             match clip_event {
                 ClipEvent::SetDragging(val) => {
