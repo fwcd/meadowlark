@@ -119,6 +119,7 @@ impl StateSystem {
 
                         self.ui_state.timeline_tracks.push(TimelineTrackUiState {
                             name: timeline_track_state.name.clone(),
+                            height: 150.0,
                             audio_clips: timeline_track_state
                                 .audio_clips
                                 .iter()
@@ -294,6 +295,9 @@ pub enum AppEvent {
     SetLoopStart(MusicalTime),
     SetLoopEnd(MusicalTime),
 
+    // Track Controls
+    SetTrackHeight(usize, f32),
+
     // Clip Controls
     // TODO - create types for track id and clip id
     SetClipStart(usize, usize, MusicalTime),
@@ -330,13 +334,20 @@ impl Model for StateSystem {
                     self.timeline_transport_stop();
                 }
 
-                //LOOP
+                // LOOP
                 AppEvent::SetLoopStart(loop_start) => {
                     self.set_loop_start(*loop_start);
                 }
 
                 AppEvent::SetLoopEnd(loop_end) => {
                     self.set_loop_end(*loop_end);
+                }
+
+                // TRACK
+                AppEvent::SetTrackHeight(track_id, track_height) => {
+                    if let Some(track_state) = self.ui_state.timeline_tracks.get_mut(*track_id) {
+                        track_state.height = *track_height;
+                    }
                 }
 
                 // CLIP

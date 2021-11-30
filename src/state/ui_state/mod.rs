@@ -53,6 +53,16 @@ impl Default for UiState {
 
 impl Model for UiState {}
 
+#[derive(Debug, Clone, Copy, Data, Lens)]
+pub struct TimelineSelectionUiState {
+    pub track_start: usize,
+    pub track_end: usize,
+    pub select_start: MusicalTime,
+    pub select_end: MusicalTime,
+}
+
+impl Model for TimelineSelectionUiState {}
+
 #[derive(Lens)]
 pub struct TempoMapUiState {
     // TODO: This will need to change once we start to support automation of tempo.
@@ -112,6 +122,9 @@ impl From<LoopState> for LoopUiState {
 pub struct TimelineTrackUiState {
     /// The name displayed on this timeline track.
     pub name: String,
+
+    /// The height of the timeline track in pixels
+    pub height: f32,
 
     /// The audio clips on this timeline track. These may not be
     /// in any particular order.

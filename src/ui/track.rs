@@ -1,7 +1,7 @@
 use vizia::*;
 
 use crate::state::{
-    ui_state::{TempoMapUiState, TimelineTrackUiState, UiState},
+    ui_state::{TempoMapUiState, TimelineSelectionUiState, TimelineTrackUiState, UiState},
     StateSystem,
 };
 
@@ -20,6 +20,7 @@ where
                 Binding::new(cx, TracksViewState::root, move |cx, track_view_state| {
                     let start_beats = track_view_state.get(cx).start_time;
                     let end_beats = track_view_state.get(cx).end_time;
+                    let timeline_beats = end_beats - start_beats;
                     HStack::new(cx, move |cx| {
                         let clip_data = track_data.get(cx).audio_clips.clone();
                         for (clip_id, clip) in clip_data.iter().enumerate() {
@@ -44,12 +45,24 @@ where
                             //.width(Percentage(width_ratio as f32 * 100.0));
                         }
                     })
-                    .height(Pixels(100.0))
                     .background_color(Color::rgb(68, 60, 60));
+
+                    // Selection - TODO
+                    // Binding::new(cx, TimelineSelectionUiState::root, move |cx, selection| {
+                    //     let select_start = selection.get(cx).select_start;
+                    //     let select_end = selection.get(cx).select_end;
+                    //     Element::new(cx)
+                    //         .background_color(Color::blue())
+                    //         .width(Stretch(1.0))
+                    //         .left(Percentage(100.0 * (select_start.0 / timeline_beats.0) as f32))
+                    //         .right(Percentage(
+                    //             100.0 * (1.0 - (select_end.0 / timeline_beats.0) as f32),
+                    //         ));
+                    // });
                 });
             },
         );
     })
-    .height(Pixels(100.0))
+    .height(Pixels(track_data.get(cx).height))
     .background_color(Color::rgb(68, 60, 60));
 }

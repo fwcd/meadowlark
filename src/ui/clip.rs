@@ -33,6 +33,7 @@ impl Clip {
                 .height(Pixels(20.0))
                 .width(Stretch(1.0))
                 .background_color(Color::rgb(254, 64, 64))
+                .class("clip_header")
                 .on_press(cx, |cx| {
                     cx.emit(ClipEvent::SetDragging(true));
                 });
@@ -62,6 +63,7 @@ impl View for Clip {
                                 ));
                             }
                             cx.captured = cx.current;
+                            cx.emit(WindowEvent::SetCursor(CursorIcon::Grabbing));
                         }
                     }
                 }
@@ -70,6 +72,9 @@ impl View for Clip {
                     cx.emit(ClipEvent::SetDragging(false));
                     self.clip_start = cx.data::<ClipData>().unwrap().start_time;
                     cx.captured = Entity::null();
+                    let cursor =
+                        cx.style.borrow().cursor.get(cx.hovered).cloned().unwrap_or_default();
+                    cx.emit(WindowEvent::SetCursor(cursor));
                 }
 
                 _ => {}

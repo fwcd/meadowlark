@@ -2,36 +2,24 @@ use rusty_daw_core::MusicalTime;
 use vizia::*;
 
 use crate::state::{
-    ui_state::{LoopUiState, TimelineTransportUiState, UiState},
+    ui_state::{LoopUiState, TimelineSelectionUiState, TimelineTransportUiState, UiState},
     StateSystem,
 };
 
-use super::{track, track_controls, LoopRegion};
+use super::{track, LoopRegion, TrackControlsView};
 
 pub fn tracks_view(cx: &mut Context) {
+    TimelineSelectionUiState {
+        track_start: 0,
+        track_end: 0,
+        select_start: MusicalTime::new(0.0),
+        select_end: MusicalTime::new(3.0),
+    }
+    .build(cx);
+
     HStack::new(cx, |cx| {
         // TODO - Make this resizable
-        VStack::new(cx, |cx| {
-            // Loop Label
-            Label::new(cx, "LOOP")
-                .height(Pixels(20.0))
-                .width(Stretch(1.0))
-                .child_left(Stretch(0.0))
-                .child_right(Pixels(5.0))
-                .bottom(Pixels(2.0));
-
-            // Track Controls
-            List::new(
-                cx,
-                StateSystem::ui_state.then(UiState::timeline_tracks),
-                |cx, track_data| {
-                    track_controls(cx, track_data);
-                },
-            )
-            .row_between(Pixels(2.0));
-        })
-        .width(Pixels(200.0))
-        .background_color(Color::rgb(42, 37, 39));
+        TrackControlsView::new(cx).background_color(Color::rgb(42, 37, 39));
 
         if cx.data::<TracksViewState>().is_none() {
             // Create some internal slider data (not exposed to the user)
@@ -54,6 +42,8 @@ pub fn tracks_view(cx: &mut Context) {
                         .then(UiState::timeline_transport)
                         .then(TimelineTransportUiState::playhead),
                     move |cx, playhead| {
+                        let timeline_beats = end_beats - start_beats;
+
                         // Grid lines
                         for i in 0..20 {
                             let ratio = (i as f64 - start_beats.0) / (end_beats.0 - start_beats.0);

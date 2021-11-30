@@ -42,6 +42,10 @@ const STYLE: &str = r#"
         font-size: 24px;
         color: #f54e47;
     }
+
+    .clip_header {
+        cursor: grab;
+    }
 "#;
 
 pub fn run() {

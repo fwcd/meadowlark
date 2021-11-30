@@ -22,7 +22,7 @@ impl View for LoopRegion {
             match window_event {
                 WindowEvent::MouseLeave => {
                     if !self.drag_start && !self.drag_end {
-                        cx.emit(WindowEvent::SetCursor(CursorIcon::Arrow));
+                        cx.emit(WindowEvent::SetCursor(CursorIcon::Default));
                     }
                 }
 
@@ -50,21 +50,24 @@ impl View for LoopRegion {
                         self.drag_end = false;
                         cx.captured = Entity::null();
                         if cx.hovered != cx.current {
-                            cx.emit(WindowEvent::SetCursor(CursorIcon::Arrow));
+                            cx.emit(WindowEvent::SetCursor(CursorIcon::Default));
                         }
                     }
                 }
 
                 WindowEvent::MouseMove(x, _) => {
                     let local_mouse_pos = *x - cx.cache.get_posx(cx.current);
-                    if !self.drag_start && !self.drag_end {
+
+                    if self.drag_start || self.drag_end {
+                        cx.emit(WindowEvent::SetCursor(CursorIcon::EwResize));
+                    } else {
                         if local_mouse_pos >= 0.0 && local_mouse_pos <= 5.0
                             || local_mouse_pos >= cx.cache.get_width(cx.current) - 5.0
                                 && local_mouse_pos <= cx.cache.get_width(cx.current)
                         {
                             cx.emit(WindowEvent::SetCursor(CursorIcon::EwResize));
                         } else {
-                            cx.emit(WindowEvent::SetCursor(CursorIcon::Arrow));
+                            cx.emit(WindowEvent::SetCursor(CursorIcon::Default));
                         }
                     }
 
