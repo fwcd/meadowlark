@@ -24,6 +24,9 @@ pub use loop_region::*;
 mod clip;
 pub use clip::*;
 
+mod keymap;
+pub use keymap::*;
+
 const STYLE: &str = r#"
     .divider {
         top: 1s;
@@ -65,21 +68,23 @@ pub fn run() {
 
         cx.add_theme(STYLE);
 
-        VStack::new(cx, |cx| {
-            // Top bar controls
-            HStack::new(cx, |cx| {
-                tempo_controls(cx).width(Pixels(300.0));
-                Element::new(cx).class("divider");
-                transport_controls(cx);
-            })
-            .height(Pixels(70.0))
-            .background_color(Color::rgb(63, 57, 59))
-            .bottom(Pixels(1.0));
+        Keymap::new(cx, |cx| {
+            VStack::new(cx, |cx| {
+                // Top bar controls
+                HStack::new(cx, |cx| {
+                    tempo_controls(cx).width(Pixels(300.0));
+                    Element::new(cx).class("divider");
+                    transport_controls(cx);
+                })
+                .height(Pixels(70.0))
+                .background_color(Color::rgb(63, 57, 59))
+                .bottom(Pixels(1.0));
 
-            // Tracks View
-            tracks_view(cx);
-        })
-        .background_color(Color::rgb(10, 10, 10));
+                // Tracks View
+                tracks_view(cx);
+            })
+            .background_color(Color::rgb(10, 10, 10));
+        });
     });
 
     let proxy = app.get_proxy();

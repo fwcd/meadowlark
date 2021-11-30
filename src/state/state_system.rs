@@ -255,6 +255,26 @@ impl StateSystem {
         }
     }
 
+    /// Switch the timeline transport state between playing and paused
+    pub fn timeline_transport_play_pause(&mut self) {
+        if let Some(project) = &mut self.project {
+            if self.ui_state.timeline_transport.is_playing {
+                self.ui_state.timeline_transport.is_playing = false;
+
+                let (transport, _) = project
+                    .backend_core_handle
+                    .timeline_transport_mut(&mut project.save_state.backend_core);
+                transport.set_playing(false);
+            } else {
+                self.ui_state.timeline_transport.is_playing = true;
+                let (transport, _) = project
+                    .backend_core_handle
+                    .timeline_transport_mut(&mut project.save_state.backend_core);
+                transport.set_playing(true);
+            }
+        }
+    }
+
     pub fn timeline_transport_stop(&mut self) {
         self.ui_state.timeline_transport.is_playing = false;
         self.ui_state.timeline_transport.seek_to = 0.0.into();
@@ -289,6 +309,7 @@ pub enum AppEvent {
     // Transport Controls
     Play,
     Pause,
+    PlayPause,
     Stop,
 
     // Loop Controls
@@ -313,25 +334,28 @@ impl Model for StateSystem {
 
                 // TEMPO
                 AppEvent::SetBpm(bpm) => {
-                    println!("Set bpm: {}", bpm);
                     self.set_bpm(*bpm);
                 }
 
                 // TRANSPORT
                 AppEvent::Play => {
-                    println!("Play");
                     self.timeline_transport_play();
+                    self.sync_playhead();
                 }
 
                 AppEvent::Pause => {
-                    println!("Pause");
                     self.timeline_transport_pause();
                     self.sync_playhead();
                 }
 
+                AppEvent::PlayPause => {
+                    self.timeline_transport_play_pause();
+                    self.sync_playhead();
+                }
+
                 AppEvent::Stop => {
-                    println!("Stop");
                     self.timeline_transport_stop();
+                    self.sync_playhead();
                 }
 
                 // LOOP
