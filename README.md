@@ -4,11 +4,9 @@
 [![Build](https://github.com/MeadowlarkDAW/Meadowlark/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/MeadowlarkDAW/Meadowlark/actions/workflows/build.yml)
 [![Discord](https://img.shields.io/discord/854818272788348958.svg?label=&logo=discord&logoColor=ffffff&color=7389D8&labelColor=6A7EC2)](https://discord.gg/2W3Xvc8wy4)
 
-Meadowlark is a FREE and open-source DAW (Digital Audio Workstation) for Linux, Mac and Windows. It aims to be an accessible and powerful recording, composing, editing, sound designing, mixing, and mastering tool for artists around the world, while also being intuitive and customizable.
+Meadowlark is a (currently incomplete) project that aims to be a FREE and open-source DAW (Digital Audio Workstation) for Linux, Mac and Windows. Its goals are to be a powerful recording, composing, editing, sound designing, mixing, and mastering tool for artists around the world, while also being intuitive and customizable.
 
-It is proudly written in the [Rust] programming language, allowing for higher stability without compromising on performance.
-
-### ***This project is still in the early stages of development. Please see below on how you can get involved.***
+### ***This project is still in the early stages of development and is not ready for any kind of production use or any alpha/beta testing. Please see below on how you can get involved to help us develop this project!***
 
 <hr/>
 
@@ -28,11 +26,12 @@ Before contributing or participating in discussions with the community, you shou
 
 * We are also active in the [Rust Audio Discord Server] where we develop some of the generic backend modules for the [RustyDAW] project. Please keep discussions there about the [RustyDAW] project and not about Meadowlark specifically. *(developers only please)*
 
-* Developers should also take a look at the current [Design Document].
+* Developers may take a look at the current [Design Document]. Note we are currently not accepting code contributions to the core project until things are more fleshed out and less "experimental". However, we *will* be accepting contributions to any DSP since that can easily be delegated and developed in parallel. Take a look at the [DSP Design Document] if you are interested.
 
 * Meadowlark is currently being used as a testbed for the upcoming [Tuix] GUI library, and we are working close with the developer for the benefit of both projects. If a GUI library written in Rust interests you, please check them out and give them your support!
 
 [Design Document]: ./DESIGN_DOC.md
+[DSP Design Document]: ./DSP_DESIGN_DOC.md
 [Discord Server]: https://discord.gg/2W3Xvc8wy4
 [Rust Audio Discord Server]: https://discord.gg/Qs2Zwtf9Gf
 [RustyDAW]: https://github.com/RustyDAW
