@@ -64,36 +64,15 @@ impl View for Clip {
                         let start_time = clip_data.start_time;
                         let end_time = clip_data.end_time;
                         let resize_start = clip_data.resize_start;
+                        let dragging = clip_data.dragging;
                         let resize_end = clip_data.resize_end;
-
-                        if clip_data.dragging {
-                            if let Some(tracks_view_state) = cx.data::<TracksViewState>() {
-                                let mut musical_pos = tracks_view_state
-                                    .delta_to_musical(*x - cx.mouse.left.pos_down.0);
-                                // Snapping
-                                musical_pos = MusicalTime::new(musical_pos.0.round());
-
-                                //println!("MP: {:?}", clip_data.start_time + musical_pos);
-                                cx.emit(AppEvent::SetClipStart(
-                                    self.track_id,
-                                    self.clip_id,
-                                    start_time + musical_pos,
-                                ));
-
-                                cx.emit(TimelineSelectionEvent::SetSelection(
-                                    self.track_id,
-                                    self.track_id,
-                                    start_time + musical_pos,
-                                    end_time + musical_pos,
-                                ));
-                            }
-                            cx.captured = cx.current;
-                            cx.emit(WindowEvent::SetCursor(CursorIcon::Grabbing));
-                        }
 
                         let local_mouse_pos = *x - cx.cache.get_posx(cx.current);
 
-                        if resize_start || resize_end {
+                        if dragging {
+                            cx.captured = cx.current;
+                            cx.emit(WindowEvent::SetCursor(CursorIcon::Grabbing));
+                        } else if resize_start || resize_end {
                             cx.emit(WindowEvent::SetCursor(CursorIcon::EwResize));
                         } else {
                             if local_mouse_pos >= 0.0 && local_mouse_pos <= 5.0
@@ -115,9 +94,31 @@ impl View for Clip {
                         }
 
                         if let Some(tracks_view_state) = cx.data::<TracksViewState>() {
-                            let mut musical_pos = tracks_view_state.cursor_to_musical(*x);
+                            let mut musical_delta =
+                                tracks_view_state.delta_to_musical(*x - cx.mouse.left.pos_down.0);
+
                             // Snapping
+                            musical_delta = MusicalTime::new(musical_delta.0.round());
+
+                            let mut musical_pos = tracks_view_state.cursor_to_musical(*x);
+
                             musical_pos = MusicalTime::new(musical_pos.0.round());
+
+                            if dragging {
+                                cx.emit(AppEvent::SetClipStart(
+                                    self.track_id,
+                                    self.clip_id,
+                                    start_time + musical_delta,
+                                ));
+
+                                cx.emit(TimelineSelectionEvent::SetSelection(
+                                    self.track_id,
+                                    self.track_id,
+                                    start_time + musical_delta,
+                                    end_time + musical_delta,
+                                ));
+                            }
+
                             if resize_end {
                                 cx.emit(AppEvent::SetClipEnd(
                                     self.track_id,
@@ -185,11 +186,16 @@ impl View for Clip {
                 WindowEvent::MouseDown(button) if *button == MouseButton::Left => {
                     cx.focused = cx.current;
 
-                    //if event.target == cx.current {
                     let local_click_pos = cx.mouse.left.pos_down.0 - cx.cache.get_posx(cx.current);
                     if local_click_pos >= 0.0 && local_click_pos <= 5.0 {
                         cx.emit(ClipEvent::SetResizeStart(true));
                         cx.emit(ClipEvent::SetDragging(false));
+                        cx.emit(TimelineSelectionEvent::SetSelection(
+                            self.track_id,
+                            self.track_id,
+                            self.clip_start,
+                            self.clip_end,
+                        ));
                     }
 
                     if local_click_pos >= cx.cache.get_width(cx.current) - 5.0
@@ -197,17 +203,22 @@ impl View for Clip {
                     {
                         cx.emit(ClipEvent::SetResizeEnd(true));
                         cx.emit(ClipEvent::SetDragging(false));
+                        cx.emit(TimelineSelectionEvent::SetSelection(
+                            self.track_id,
+                            self.track_id,
+                            self.clip_start,
+                            self.clip_end,
+                        ));
                     }
 
                     cx.captured = cx.current;
-                    //}
                 }
 
                 // TEMPORARY - Need to move this to a keymap that wraps the timeline
                 WindowEvent::KeyDown(code, _) => match code {
                     Code::KeyD => {
                         if cx.modifiers.contains(Modifiers::CTRL) {
-                            println!("Duplicate");
+                            //println!("Duplicate");
                             if let Some(timeline_selection) = cx.data::<TimelineSelectionUiState>()
                             {
                                 cx.emit(AppEvent::Duplicate(
