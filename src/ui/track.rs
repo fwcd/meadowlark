@@ -24,6 +24,7 @@ where
                     let start_beats = track_view_state.get(cx).start_time;
                     let end_beats = track_view_state.get(cx).end_time;
                     let timeline_beats = end_beats - start_beats;
+                    let timeline_width = track_view_state.get(cx).width as f64;
                     HStack::new(cx, move |cx| {
                         let clip_data = track_data.get(cx).audio_clips.clone();
 
@@ -42,19 +43,22 @@ where
                             let duration = clip.duration.to_musical(*bpm.get(cx) as f64);
                             let clip_end = clip_start + duration;
 
-                            let clip_start_pos =
-                                (clip_start.0 - start_beats.0).max(0.0) / timeline_beats.0;
-                            let clip_end_pos =
-                                (clip_end.0 - start_beats.0).max(0.0) / timeline_beats.0;
+                            let clip_start_pos = timeline_width
+                                * (clip_start.0 - start_beats.0).max(0.0)
+                                / timeline_beats.0;
+                            let clip_end_pos = timeline_width
+                                * (clip_end.0 - start_beats.0).max(0.0)
+                                / timeline_beats.0;
+
+                            let clip_width = clip_end_pos.floor() - clip_start_pos.floor();
 
                             let should_display =
                                 clip_start >= start_beats || clip_end >= start_beats;
 
                             Clip::new(cx, track_id, clip_id, clip_name, clip_start, clip_end)
-                                //.display(if should_display {Display::Flex} else {Display::None})
-                                .left(Percentage(clip_start_pos as f32 * 100.0))
-                                .right(Percentage((1.0 - clip_end_pos as f32) * 100.0))
-                                .width(Stretch(1.0))
+                                .display(if should_display { Display::Flex } else { Display::None })
+                                .left(Pixels(clip_start_pos.floor() as f32 + 1.0))
+                                .width(Pixels(clip_width as f32 - 1.0))
                                 .z_order(2);
                         }
                     })
@@ -67,14 +71,21 @@ where
                         let track_start = selection.get(cx).track_start;
                         let track_end = selection.get(cx).track_end;
                         let should_display = track_id >= track_start && track_id <= track_end;
+
+                        let select_start_pos = timeline_width
+                            * (select_start.0 - start_beats.0).max(0.0)
+                            / timeline_beats.0;
+                        let select_end_pos = timeline_width
+                            * (select_end.0 - start_beats.0).max(0.0)
+                            / timeline_beats.0;
+
+                        let select_width = select_end_pos.floor() - select_start_pos.floor();
+
                         Element::new(cx)
                             .display(if should_display { Display::Flex } else { Display::None })
                             .background_color(Color::rgba(50, 200, 250, 100))
-                            .width(Stretch(1.0))
-                            .left(Percentage(100.0 * (select_start.0 / timeline_beats.0) as f32))
-                            .right(Percentage(
-                                100.0 * (1.0 - (select_end.0 / timeline_beats.0) as f32),
-                            ));
+                            .width(Pixels(select_width as f32 - 1.0))
+                            .left(Pixels(select_start_pos.floor() as f32 + 1.0));
                     });
                 });
             },

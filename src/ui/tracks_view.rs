@@ -38,6 +38,7 @@ pub fn tracks_view(cx: &mut Context) {
             Binding::new(cx, TracksViewState::root, |cx, track_view_state| {
                 let start_beats = track_view_state.get(cx).start_time;
                 let end_beats = track_view_state.get(cx).end_time;
+                let timeline_width = track_view_state.get(cx).width;
                 Binding::new(
                     cx,
                     StateSystem::ui_state
@@ -51,7 +52,7 @@ pub fn tracks_view(cx: &mut Context) {
                             let ratio = (i as f64 - start_beats.0) / timeline_beats.0;
                             Element::new(cx)
                                 .width(Pixels(1.0))
-                                .left(Percentage(ratio as f32 * 100.0))
+                                .left(Pixels((ratio as f32 * timeline_width).floor()))
                                 .background_color(Color::rgb(36, 36, 36))
                                 .z_order(1);
                         }
