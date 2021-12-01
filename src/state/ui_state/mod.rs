@@ -1,6 +1,6 @@
 use rusty_daw_core::{MusicalTime, SampleRate, Seconds};
 use std::path::PathBuf;
-use vizia::{Data, Lens, Model};
+use vizia::{Context, Data, Event, Lens, Model};
 
 use crate::backend::timeline::{AudioClipState, LoopState};
 
@@ -53,15 +53,51 @@ impl Default for UiState {
 
 impl Model for UiState {}
 
+
+// State which describes a selection within the timeline view
 #[derive(Debug, Clone, Copy, Data, Lens)]
 pub struct TimelineSelectionUiState {
     pub track_start: usize,
     pub track_end: usize,
     pub select_start: MusicalTime,
     pub select_end: MusicalTime,
+
+    pub hovered_track: usize,
 }
 
-impl Model for TimelineSelectionUiState {}
+#[derive(Debug)]
+pub enum TimelineSelectionEvent {
+    SetHoveredTrack(usize),
+    // track_start, track_end, select_start, select_end
+    SetSelection(usize, usize, MusicalTime, MusicalTime),
+
+}
+
+impl Model for TimelineSelectionUiState {
+    fn event(&mut self, cx: &mut Context, event: &mut Event) {
+        if let Some(timeline_selection_event) = event.message.downcast() {
+            match timeline_selection_event {
+                TimelineSelectionEvent::SetHoveredTrack(track_id) => {
+                    
+                    println!("Hovered Track: {}", track_id);
+                    self.hovered_track = *track_id;
+                }
+
+                TimelineSelectionEvent::SetSelection(track_start, track_end, select_start, select_end) => {
+                    
+                    //println!("track_start: {}, track_end: {}, select_start: {:?}, select_end: {:?}", track_start, track_end, select_start, select_end);
+                    self.track_start = *track_start;
+                    self.track_end = *track_end;
+                    self.select_start = *select_start;
+                    self.select_end = *select_end;
+                }
+
+                
+            }
+        }
+    }
+
+}
 
 #[derive(Lens)]
 pub struct TempoMapUiState {
@@ -133,7 +169,7 @@ pub struct TimelineTrackUiState {
 
 impl Model for TimelineTrackUiState {}
 
-#[derive(Clone, Data, Lens)]
+#[derive(Debug, Clone, Data, Lens)]
 pub struct AudioClipUiState {
     /// The name displayed on the audio clip.
     pub name: String,

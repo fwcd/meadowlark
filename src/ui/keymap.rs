@@ -31,6 +31,13 @@ impl View for Keymap {
                         cx.emit(AppEvent::PlayPause);
                     }
 
+                    Code::KeyD => {
+                        if cx.modifiers.contains(Modifiers::CTRL) {
+                            //println!("Duplicate");
+
+                        }
+                    }
+
                     _ => {}
                 },
 

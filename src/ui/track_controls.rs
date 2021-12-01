@@ -30,7 +30,16 @@ impl TrackControlsView {
                         TrackControls::new(cx, track_data.index(), track_data);
                     },
                 )
-                .row_between(Pixels(2.0));
+                .row_between(Pixels(2.0))
+                .height(Auto);
+
+                // Temporary add track button
+                // Button::new(cx, |cx| {println!("Add Track")}, |cx|{
+                //     Label::new(cx, "Add Track")
+                //         .child_space(Stretch(1.0))
+                //         .height(Pixels(30.0))
+                //         .width(Stretch(1.0));
+                // }).height(Pixels(30.0)).width(Stretch(1.0));
             })
             .width(Pixels(200.0))
     }
