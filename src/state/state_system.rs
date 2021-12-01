@@ -5,7 +5,9 @@ use rusty_daw_audio_graph::{NodeRef, PortType};
 use rusty_daw_core::{MusicalTime, SampleRate};
 use vizia::{Lens, Model};
 
-use crate::backend::timeline::{AudioClipFades, AudioClipState, LoopState, TimelineTrackHandle, TimelineTrackNode};
+use crate::backend::timeline::{
+    AudioClipFades, AudioClipState, LoopState, TimelineTrackHandle, TimelineTrackNode,
+};
 use crate::backend::{BackendCoreHandle, BackendCoreState, ResourceLoadError};
 
 use super::ui_state::{LoopUiState, TimelineTrackUiState, UiState};
@@ -232,7 +234,8 @@ impl StateSystem {
     pub fn set_clip_end(&mut self, track_id: usize, clip_id: usize, clip_end: MusicalTime) {
         if let Some(track_state) = self.ui_state.timeline_tracks.get_mut(track_id) {
             if let Some(clip_state) = track_state.audio_clips.get_mut(clip_id) {
-                clip_state.duration = (clip_end - clip_state.timeline_start).to_seconds(self.ui_state.tempo_map.bpm);
+                clip_state.duration =
+                    (clip_end - clip_state.timeline_start).to_seconds(self.ui_state.tempo_map.bpm);
             }
         }
 
@@ -242,7 +245,11 @@ impl StateSystem {
                 if let Some((clip_handle, clip_state)) =
                     track.audio_clip_mut(clip_id, timeline_tracks_state.get_mut(track_id).unwrap())
                 {
-                    clip_handle.set_duration((clip_end - clip_state.timeline_start).to_seconds(tempo_map.bpm()), tempo_map, clip_state);
+                    clip_handle.set_duration(
+                        (clip_end - clip_state.timeline_start).to_seconds(tempo_map.bpm()),
+                        tempo_map,
+                        clip_state,
+                    );
                 }
             }
         }
@@ -308,7 +315,12 @@ impl StateSystem {
     }
 
     // Duplicates the timeline selection and places it after the selected region
-    pub fn timeline_duplicate_selection(&mut self, track_id: usize, select_start: MusicalTime, select_end: MusicalTime) {
+    pub fn timeline_duplicate_selection(
+        &mut self,
+        track_id: usize,
+        select_start: MusicalTime,
+        select_end: MusicalTime,
+    ) {
         // Collect all the clips (and parts of clips) that fall into the selection
         // Create new clips with those selected regions
         // For now I'm just going to copy whole clips but we can get this working later
@@ -316,19 +328,28 @@ impl StateSystem {
         // TODO - get bpm
         let bpm = self.ui_state.tempo_map.bpm;
         let mut selected_clips = if let Some(track) = self.ui_state.timeline_tracks.get(track_id) {
-             track.audio_clips.iter()
-                .filter(|clip| clip.timeline_start >= select_start && (clip.timeline_start + clip.duration.to_musical(bpm)) <= select_end).cloned().collect::<Vec<_>>()
+            track
+                .audio_clips
+                .iter()
+                .filter(|clip| {
+                    clip.timeline_start >= select_start
+                        && (clip.timeline_start + clip.duration.to_musical(bpm)) <= select_end
+                })
+                .cloned()
+                .collect::<Vec<_>>()
         } else {
             Vec::new()
         };
 
         for selected_clip in selected_clips.iter_mut() {
-            selected_clip.timeline_start = (selected_clip.timeline_start - select_start) + select_end;
+            selected_clip.timeline_start =
+                (selected_clip.timeline_start - select_start) + select_end;
 
             if let Some(project) = &mut self.project {
                 if let Some((_, track)) = project.timeline_track_handles.get_mut(track_id) {
-                    let (tempo_map, timeline_tracks_state) = project.save_state.timeline_tracks_mut();
-                    
+                    let (tempo_map, timeline_tracks_state) =
+                        project.save_state.timeline_tracks_mut();
+
                     let clip_state = AudioClipState {
                         name: selected_clip.name.clone(),
                         pcm_path: selected_clip.pcm_path.clone(),
@@ -336,22 +357,25 @@ impl StateSystem {
                         duration: selected_clip.duration,
                         clip_start_offset: selected_clip.clip_start_offset,
                         clip_gain_db: selected_clip.clip_gain_db,
-                        fades: AudioClipFades { 
-                            start_fade_duration: selected_clip.fades.start_fade_duration, 
-                            end_fade_duration: selected_clip.fades.end_fade_duration, 
+                        fades: AudioClipFades {
+                            start_fade_duration: selected_clip.fades.start_fade_duration,
+                            end_fade_duration: selected_clip.fades.end_fade_duration,
                         },
                     };
-                    
-                    track.add_audio_clip(clip_state, project.backend_core_handle.resource_cache(), tempo_map, timeline_tracks_state.get_mut(track_id).unwrap());
-                    
-                    
+
+                    track.add_audio_clip(
+                        clip_state,
+                        project.backend_core_handle.resource_cache(),
+                        tempo_map,
+                        timeline_tracks_state.get_mut(track_id).unwrap(),
+                    );
                 }
             }
         }
 
         if let Some(track) = self.ui_state.timeline_tracks.get_mut(track_id) {
             track.audio_clips.extend(selected_clips.into_iter());
-        } 
+        }
     }
 
     pub fn add_track(&mut self) {
@@ -394,7 +418,6 @@ pub enum AppEvent {
     // Track Controls
     AddTrack, // TODO - add data needed for adding track before/after another track
     SetTrackHeight(usize, f32),
-
 
     // Clip Controls
     // TODO - create types for track id and clip id

@@ -1,6 +1,12 @@
 use vizia::*;
 
-use crate::state::{StateSystem, ui_state::{TempoMapUiState, TimelineSelectionEvent, TimelineSelectionUiState, TimelineTrackUiState, UiState}};
+use crate::state::{
+    ui_state::{
+        TempoMapUiState, TimelineSelectionEvent, TimelineSelectionUiState, TimelineTrackUiState,
+        UiState,
+    },
+    StateSystem,
+};
 
 use super::{tracks_view::TracksViewState, Clip};
 
@@ -25,7 +31,7 @@ where
                             for child in cx.current.child_iter(&cx.tree.clone()) {
                                 cx.remove(child);
                             }
-                            
+
                             cx.style.borrow_mut().needs_relayout = true;
                             cx.style.borrow_mut().needs_redraw = true;
                         }
@@ -36,12 +42,13 @@ where
                             let duration = clip.duration.to_musical(*bpm.get(cx) as f64);
                             let clip_end = clip_start + duration;
 
-                            
+                            let clip_start_pos =
+                                (clip_start.0 - start_beats.0).max(0.0) / timeline_beats.0;
+                            let clip_end_pos =
+                                (clip_end.0 - start_beats.0).max(0.0) / timeline_beats.0;
 
-                            let clip_start_pos = (clip_start.0 - start_beats.0).max(0.0) / timeline_beats.0;
-                            let clip_end_pos = (clip_end.0 - start_beats.0).max(0.0) / timeline_beats.0;
-
-                            let should_display = clip_start >= start_beats || clip_end >= start_beats;
+                            let should_display =
+                                clip_start >= start_beats || clip_end >= start_beats;
 
                             Clip::new(cx, track_id, clip_id, clip_name, clip_start, clip_end)
                                 //.display(if should_display {Display::Flex} else {Display::None})
@@ -61,7 +68,7 @@ where
                         let track_end = selection.get(cx).track_end;
                         let should_display = track_id >= track_start && track_id <= track_end;
                         Element::new(cx)
-                            .display(if should_display {Display::Flex} else {Display::None})
+                            .display(if should_display { Display::Flex } else { Display::None })
                             .background_color(Color::rgba(50, 200, 250, 100))
                             .width(Stretch(1.0))
                             .left(Percentage(100.0 * (select_start.0 / timeline_beats.0) as f32))
@@ -75,7 +82,7 @@ where
     })
     .height(Pixels(track_data.get(cx).height))
     .background_color(Color::rgb(68, 60, 60))
-    .on_over(cx, move |cx|{
+    .on_over(cx, move |cx| {
         cx.emit(TimelineSelectionEvent::SetHoveredTrack(track_id));
     });
 }

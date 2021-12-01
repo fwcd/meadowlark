@@ -68,12 +68,21 @@ pub fn tracks_view(cx: &mut Context) {
                                         let loop_state = loop_state.get(cx);
                                         match loop_state {
                                             LoopUiState::Active { loop_start, loop_end } => {
-                                                let loop_start_pos = (loop_start.0 - start_beats.0).max(0.0) / (end_beats.0 - start_beats.0);
-                                                let loop_end_pos = (loop_end.0 - start_beats.0).max(0.0) / (end_beats.0 - start_beats.0);
+                                                let loop_start_pos = (loop_start.0 - start_beats.0)
+                                                    .max(0.0)
+                                                    / (end_beats.0 - start_beats.0);
+                                                let loop_end_pos = (loop_end.0 - start_beats.0)
+                                                    .max(0.0)
+                                                    / (end_beats.0 - start_beats.0);
                                                 //println!("loop_start: {:?} loop_end: {:?} start_beats: {:?} end_beats: {:?}", loop_start, loop_end, start_beats, end_beats);
-                                                let should_display = *loop_start >= start_beats || *loop_end >= start_beats;
+                                                let should_display = *loop_start >= start_beats
+                                                    || *loop_end >= start_beats;
                                                 LoopRegion::new(cx)
-                                                    .display(if should_display {Display::Flex} else {Display::None})
+                                                    .display(if should_display {
+                                                        Display::Flex
+                                                    } else {
+                                                        Display::None
+                                                    })
                                                     .background_color(Color::rgba(
                                                         50, 100, 255, 120,
                                                     ))
@@ -127,16 +136,18 @@ pub fn tracks_view(cx: &mut Context) {
             });
         })
         .background_color(Color::rgb(42, 37, 39))
-        .on_move(cx, |cx, x, y|{
-            if x >= cx.cache.get_posx(cx.current) + cx.cache.get_width(cx.current) - 10.0 && x <= cx.cache.get_posx(cx.current) + cx.cache.get_width(cx.current) {
+        .on_move(cx, |cx, x, y| {
+            if x >= cx.cache.get_posx(cx.current) + cx.cache.get_width(cx.current) - 10.0
+                && x <= cx.cache.get_posx(cx.current) + cx.cache.get_width(cx.current)
+            {
                 // Moves the timeline view forwards when the mouse is on the right edge
-                // TODO - sync with tick rate 
+                // TODO - sync with tick rate
                 //cx.emit(TracksViewEvent::ShiftForwards(MusicalTime::new(1.0)));
             }
 
             if x > cx.cache.get_posx(cx.current) && x < cx.cache.get_posx(cx.current) + 10.0 {
                 // Moves the timeline view backwards when the mouse is on the left edge
-                // TODO - sync with tick rate 
+                // TODO - sync with tick rate
                 //cx.emit(TracksViewEvent::ShiftBackwards(MusicalTime::new(1.0)));
             }
         })
@@ -199,7 +210,6 @@ impl Model for TracksViewState {
                         self.end_time -= *time_shift;
                     }
                 }
-
             }
         }
     }

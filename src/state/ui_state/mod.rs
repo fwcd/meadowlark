@@ -53,7 +53,6 @@ impl Default for UiState {
 
 impl Model for UiState {}
 
-
 // State which describes a selection within the timeline view
 #[derive(Debug, Clone, Copy, Data, Lens)]
 pub struct TimelineSelectionUiState {
@@ -70,7 +69,6 @@ pub enum TimelineSelectionEvent {
     SetHoveredTrack(usize),
     // track_start, track_end, select_start, select_end
     SetSelection(usize, usize, MusicalTime, MusicalTime),
-
 }
 
 impl Model for TimelineSelectionUiState {
@@ -78,25 +76,25 @@ impl Model for TimelineSelectionUiState {
         if let Some(timeline_selection_event) = event.message.downcast() {
             match timeline_selection_event {
                 TimelineSelectionEvent::SetHoveredTrack(track_id) => {
-                    
                     println!("Hovered Track: {}", track_id);
                     self.hovered_track = *track_id;
                 }
 
-                TimelineSelectionEvent::SetSelection(track_start, track_end, select_start, select_end) => {
-                    
+                TimelineSelectionEvent::SetSelection(
+                    track_start,
+                    track_end,
+                    select_start,
+                    select_end,
+                ) => {
                     //println!("track_start: {}, track_end: {}, select_start: {:?}, select_end: {:?}", track_start, track_end, select_start, select_end);
                     self.track_start = *track_start;
                     self.track_end = *track_end;
                     self.select_start = *select_start;
                     self.select_end = *select_end;
                 }
-
-                
             }
         }
     }
-
 }
 
 #[derive(Lens)]

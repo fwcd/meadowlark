@@ -34,7 +34,6 @@ impl View for Keymap {
                     Code::KeyD => {
                         if cx.modifiers.contains(Modifiers::CTRL) {
                             //println!("Duplicate");
-
                         }
                     }
 
