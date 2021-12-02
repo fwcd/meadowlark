@@ -13,6 +13,13 @@ impl TrackControlsView {
     pub fn new(cx: &mut Context) -> Handle<Self> {
         Self { resizing: false }
             .build2(cx, move |cx| {
+                // Bar Label
+                Label::new(cx, "BAR")
+                    .height(Pixels(20.0))
+                    .width(Stretch(1.0))
+                    .child_left(Stretch(0.0))
+                    .child_right(Pixels(5.0));
+
                 // Loop Label
                 Label::new(cx, "LOOP")
                     .height(Pixels(20.0))

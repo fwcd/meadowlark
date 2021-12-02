@@ -69,6 +69,8 @@ pub enum TimelineSelectionEvent {
     SetHoveredTrack(usize),
     // track_start, track_end, select_start, select_end
     SetSelection(usize, usize, MusicalTime, MusicalTime),
+
+    SelectNone,
 }
 
 impl Model for TimelineSelectionUiState {
@@ -91,6 +93,13 @@ impl Model for TimelineSelectionUiState {
                     self.track_end = *track_end;
                     self.select_start = *select_start;
                     self.select_end = *select_end;
+                }
+
+                TimelineSelectionEvent::SelectNone => {
+                    self.track_start = 0;
+                    self.track_end = 0;
+                    self.select_start = MusicalTime::new(0.0);
+                    self.select_end = MusicalTime::new(0.0);
                 }
             }
         }

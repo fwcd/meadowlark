@@ -42,10 +42,10 @@ impl ProjectSaveState {
         timeline_tracks.push(TimelineTrackState {
             name: String::from("Track 1"),
             audio_clips: vec![AudioClipState {
-                name: String::from("Audio Clip 1"),
-                pcm_path: "./assets/test_files/piano/pp.wav".into(),
-                timeline_start: MusicalTime::new(8.0),
-                duration: Seconds::new(3.0),
+                name: String::from("Kick"),
+                pcm_path: "./assets/test_files/drums/kick.wav".into(),
+                timeline_start: MusicalTime::new(0.0),
+                duration: Seconds::new(0.5),
                 clip_start_offset: Seconds::new(0.0),
                 clip_gain_db: -3.0,
                 fades: Default::default(),
@@ -55,10 +55,10 @@ impl ProjectSaveState {
         timeline_tracks.push(TimelineTrackState {
             name: String::from("Track 2"),
             audio_clips: vec![AudioClipState {
-                name: String::from("Audio Clip 1"),
-                pcm_path: "./assets/test_files/synth_keys/synth_keys_48000_16bit.wav".into(),
+                name: String::from("Snare"),
+                pcm_path: "./assets/test_files/drums/snare.wav".into(),
                 timeline_start: MusicalTime::new(1.0),
-                duration: Seconds::new(3.0),
+                duration: Seconds::new(0.5),
                 clip_start_offset: Seconds::new(0.0),
                 clip_gain_db: -3.0,
                 fades: Default::default(),

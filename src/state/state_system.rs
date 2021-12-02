@@ -10,7 +10,7 @@ use crate::backend::timeline::{
 };
 use crate::backend::{BackendCoreHandle, BackendCoreState, ResourceLoadError};
 
-use super::ui_state::{LoopUiState, TimelineTrackUiState, UiState};
+use super::ui_state::{AudioClipUiState, LoopUiState, TimelineTrackUiState, UiState};
 use super::ProjectSaveState;
 
 pub struct Project {
@@ -378,6 +378,65 @@ impl StateSystem {
         }
     }
 
+    // Removes a timeline selection
+    pub fn timeline_remove_selection(
+        &mut self,
+        track_id: usize,
+        select_start: MusicalTime,
+        select_end: MusicalTime,
+    ) {
+        // TODO - get bpm
+        let bpm = self.ui_state.tempo_map.bpm;
+        let mut selected_clips = if let Some(track) = self.ui_state.timeline_tracks.get(track_id) {
+            track
+                .audio_clips
+                .iter()
+                .cloned()
+                .enumerate()
+                .filter(|(clip_id, clip)| {
+                    clip.timeline_start >= select_start
+                        && (clip.timeline_start + clip.duration.to_musical(bpm)) <= select_end
+                })
+                .collect::<Vec<(usize, AudioClipUiState)>>()
+        } else {
+            Vec::new()
+        };
+
+        for (clip_id, selected_clip) in selected_clips.iter_mut() {
+            selected_clip.timeline_start =
+                (selected_clip.timeline_start - select_start) + select_end;
+
+            if let Some(project) = &mut self.project {
+                if let Some((_, track)) = project.timeline_track_handles.get_mut(track_id) {
+                    let (tempo_map, timeline_tracks_state) =
+                        project.save_state.timeline_tracks_mut();
+
+                    let clip_state = AudioClipState {
+                        name: selected_clip.name.clone(),
+                        pcm_path: selected_clip.pcm_path.clone(),
+                        timeline_start: selected_clip.timeline_start,
+                        duration: selected_clip.duration,
+                        clip_start_offset: selected_clip.clip_start_offset,
+                        clip_gain_db: selected_clip.clip_gain_db,
+                        fades: AudioClipFades {
+                            start_fade_duration: selected_clip.fades.start_fade_duration,
+                            end_fade_duration: selected_clip.fades.end_fade_duration,
+                        },
+                    };
+
+                    track.remove_audio_clip(
+                        *clip_id,
+                        timeline_tracks_state.get_mut(track_id).unwrap(),
+                    );
+                }
+            }
+
+            if let Some(track) = self.ui_state.timeline_tracks.get_mut(track_id) {
+                track.audio_clips.remove(*clip_id);
+            }
+        }
+    }
+
     pub fn add_track(&mut self) {
         todo!();
     }
@@ -403,7 +462,8 @@ pub enum AppEvent {
     // Timeline Contols
     // TODO - Add track_start and track_end to this
     // TODO - Maybe change the name of this
-    Duplicate(usize, MusicalTime, MusicalTime),
+    DuplicateSelection(usize, MusicalTime, MusicalTime),
+    RemoveSelection(usize, MusicalTime, MusicalTime),
 
     // Transport Controls
     Play,
@@ -439,8 +499,12 @@ impl Model for StateSystem {
                 }
 
                 // TIMELINE
-                AppEvent::Duplicate(track_id, select_start, select_end) => {
+                AppEvent::DuplicateSelection(track_id, select_start, select_end) => {
                     self.timeline_duplicate_selection(*track_id, *select_start, *select_end);
+                }
+
+                AppEvent::RemoveSelection(track_id, select_start, select_end) => {
+                    self.timeline_remove_selection(*track_id, *select_start, *select_end);
                 }
 
                 // TRANSPORT

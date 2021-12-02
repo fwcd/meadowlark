@@ -6,7 +6,7 @@ use crate::state::{
     AppEvent,
 };
 
-use super::tracks_view::TracksViewState;
+use super::timeline_view::TimelineViewState;
 
 pub struct Clip {
     track_id: usize,
@@ -26,6 +26,8 @@ impl Clip {
     ) -> Handle<Self> {
         Self { track_id, clip_id, clip_start, clip_end }
             .update(cx, move |cx| {
+                cx.focused = cx.current;
+
                 if cx.data::<ClipData>().is_none() {
                     // Create some internal slider data (not exposed to the user)
                     ClipData {
@@ -93,14 +95,14 @@ impl View for Clip {
                             }
                         }
 
-                        if let Some(tracks_view_state) = cx.data::<TracksViewState>() {
+                        if let Some(timeline_view_state) = cx.data::<TimelineViewState>() {
                             let mut musical_delta =
-                                tracks_view_state.delta_to_musical(*x - cx.mouse.left.pos_down.0);
+                                timeline_view_state.delta_to_musical(*x - cx.mouse.left.pos_down.0);
 
                             // Snapping
                             musical_delta = MusicalTime::new(musical_delta.0.round());
 
-                            let mut musical_pos = tracks_view_state.cursor_to_musical(*x);
+                            let mut musical_pos = timeline_view_state.cursor_to_musical(*x);
 
                             musical_pos = MusicalTime::new(musical_pos.0.round());
 
@@ -219,14 +221,36 @@ impl View for Clip {
                     Code::KeyD => {
                         if cx.modifiers.contains(Modifiers::CTRL) {
                             //println!("Duplicate");
-                            if let Some(timeline_selection) = cx.data::<TimelineSelectionUiState>()
+                            if let Some(timeline_selection) =
+                                cx.data::<TimelineSelectionUiState>().cloned()
                             {
-                                cx.emit(AppEvent::Duplicate(
+                                cx.emit(AppEvent::DuplicateSelection(
                                     timeline_selection.track_start,
                                     timeline_selection.select_start,
                                     timeline_selection.select_end,
                                 ));
+
+                                cx.emit(TimelineSelectionEvent::SetSelection(
+                                    timeline_selection.track_start,
+                                    timeline_selection.track_start,
+                                    timeline_selection.select_end,
+                                    timeline_selection.select_end
+                                        + (timeline_selection.select_end
+                                            - timeline_selection.select_start),
+                                ));
                             }
+                        }
+                    }
+
+                    Code::Delete => {
+                        if let Some(timeline_selection) = cx.data::<TimelineSelectionUiState>() {
+                            cx.emit(AppEvent::RemoveSelection(
+                                timeline_selection.track_start,
+                                timeline_selection.select_start,
+                                timeline_selection.select_end,
+                            ));
+
+                            cx.emit(TimelineSelectionEvent::SelectNone);
                         }
                     }
 

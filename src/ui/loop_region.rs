@@ -3,7 +3,7 @@ use vizia::*;
 
 use crate::state::AppEvent;
 
-use super::tracks_view::TracksViewState;
+use super::timeline_view::TimelineViewState;
 
 pub struct LoopRegion {
     drag_start: bool,
@@ -71,8 +71,8 @@ impl View for LoopRegion {
                         }
                     }
 
-                    if let Some(tracks_view_state) = cx.data::<TracksViewState>() {
-                        let mut musical_pos = tracks_view_state.cursor_to_musical(*x);
+                    if let Some(timeline_view_state) = cx.data::<TimelineViewState>() {
+                        let mut musical_pos = timeline_view_state.cursor_to_musical(*x);
                         // Snapping
                         musical_pos = MusicalTime::new(musical_pos.0.round());
                         if self.drag_end {

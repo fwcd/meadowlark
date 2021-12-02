@@ -8,7 +8,7 @@ use crate::state::{
     StateSystem,
 };
 
-use super::{tracks_view::TracksViewState, Clip};
+use super::{timeline_view::TimelineViewState, Clip};
 
 pub fn track<D>(cx: &mut Context, track_id: usize, track_data: D)
 where
@@ -20,7 +20,7 @@ where
             cx,
             StateSystem::ui_state.then(UiState::tempo_map).then(TempoMapUiState::bpm),
             move |cx, bpm| {
-                Binding::new(cx, TracksViewState::root, move |cx, track_view_state| {
+                Binding::new(cx, TimelineViewState::root, move |cx, track_view_state| {
                     let start_beats = track_view_state.get(cx).start_time;
                     let end_beats = track_view_state.get(cx).end_time;
                     let timeline_beats = end_beats - start_beats;

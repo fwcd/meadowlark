@@ -9,8 +9,8 @@ use tempo_controls::tempo_controls;
 mod transport_controls;
 use transport_controls::transport_controls;
 
-mod tracks_view;
-use tracks_view::tracks_view;
+mod timeline_view;
+use timeline_view::timeline_view;
 
 mod track_controls;
 pub use track_controls::*;
@@ -26,6 +26,9 @@ pub use clip::*;
 
 mod keymap;
 pub use keymap::*;
+
+mod waveform;
+pub use waveform::*;
 
 const STYLE: &str = r#"
     .divider {
@@ -81,7 +84,7 @@ pub fn run() {
                 .bottom(Pixels(1.0));
 
                 // Tracks View
-                tracks_view(cx);
+                timeline_view(cx);
             })
             .background_color(Color::rgb(10, 10, 10));
         });
