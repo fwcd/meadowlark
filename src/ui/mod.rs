@@ -30,6 +30,9 @@ pub use keymap::*;
 mod waveform;
 pub use waveform::*;
 
+mod timeline_grid;
+pub use timeline_grid::*;
+
 const STYLE: &str = r#"
     .divider {
         top: 1s;

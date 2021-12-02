@@ -6,14 +6,14 @@ use crate::state::{
     StateSystem,
 };
 
-use super::{track, LoopRegion, TrackControlsView};
+use super::{track, LoopRegion, TimelineGrid, TrackControlsView};
 
 pub fn timeline_view(cx: &mut Context) {
     TimelineSelectionUiState {
         track_start: 0,
         track_end: 0,
         select_start: MusicalTime::new(0.0),
-        select_end: MusicalTime::new(3.0),
+        select_end: MusicalTime::new(1.0),
 
         hovered_track: 0,
     }
@@ -27,7 +27,7 @@ pub fn timeline_view(cx: &mut Context) {
             // Create some internal slider data (not exposed to the user)
             TimelineViewState {
                 start_time: MusicalTime::new(0.into()),
-                end_time: MusicalTime::new((15.3).into()),
+                end_time: MusicalTime::new(20.into()),
                 timeline_start: MusicalTime::new(0.into()),
                 timeline_end: MusicalTime::new(30.into()),
                 width: 0.0,
@@ -53,39 +53,11 @@ pub fn timeline_view(cx: &mut Context) {
                         let timeline_beats = end_beats - start_beats;
 
                         // Grid lines
-                        // TODO - Replace this with custom drawing
-                        ForEach::new(
-                            cx,
-                            (start_beats.0 as usize)..(end_beats.0 as usize),
-                            move |cx, i| {
-                                let ratio = (i as f64 - start_beats.0) / timeline_beats.0;
-                                Element::new(cx)
-                                    .width(Pixels(1.0))
-                                    .left(Pixels((ratio as f32 * timeline_width).floor()))
-                                    .background_color(Color::rgb(36, 36, 36))
-                                    .position_type(PositionType::SelfDirected)
-                                    .z_order(1);
-                            },
-                        );
+                        TimelineGrid::new(cx).z_order(1).hoverable(false);
 
                         VStack::new(cx, move |cx| {
                             // Bars
-                            HStack::new(cx, move |cx| {
-                                // TODO - Replace this with custom drawing
-                                ForEach::new(
-                                    cx,
-                                    (start_beats.0 as usize)..(end_beats.0 as usize),
-                                    move |cx, i| {
-                                        let ratio = (i as f64 - start_beats.0) / timeline_beats.0;
-                                        Label::new(cx, &(i + 1).to_string())
-                                            .height(Stretch(1.0))
-                                            .left(Pixels((ratio as f32 * timeline_width).floor()))
-                                            .position_type(PositionType::SelfDirected)
-                                            .z_order(4);
-                                    },
-                                );
-                            })
-                            .height(Pixels(20.0));
+                            Element::new(cx).height(Pixels(20.0));
 
                             // Loop Bar
                             ZStack::new(cx, move |cx| {
@@ -148,11 +120,13 @@ pub fn timeline_view(cx: &mut Context) {
                             //HStack::new(cx, move |cx|{
                             //Button::new(cx, |_|{}, |_|{}).width(Pixels(15.0)).height(Pixels(15.0));
                             ZStack::new(cx, move |cx| {
-                                let ratio = timeline_beats / (timeline_end - timeline_start);
-
+                                let width_ratio = timeline_beats / (timeline_end - timeline_start);
+                                let start_ratio = (start_beats - timeline_start)
+                                    / (timeline_end - timeline_start);
                                 //Element::new(cx)
                                 ScrollBar::new(cx)
-                                    .width(Pixels(ratio.0 as f32 * timeline_width))
+                                    .left(Pixels(start_ratio.0 as f32 * timeline_width))
+                                    .width(Pixels(width_ratio.0 as f32 * timeline_width))
                                     .background_color(Color::rgb(126, 118, 119));
                             })
                             .child_space(Pixels(1.0))
@@ -225,14 +199,15 @@ pub struct TimelineViewState {
 impl TimelineViewState {
     // Converts absolute cursor position into musical time
     pub fn cursor_to_musical(&self, cursorx: f32) -> MusicalTime {
-        let beats =
-            ((cursorx - self.posx) / self.width) * (self.end_time.0 - self.start_time.0) as f32;
+        let beats = self.start_time.0
+            + ((cursorx - self.posx) / self.width) as f64 * (self.end_time.0 - self.start_time.0);
         MusicalTime::new(beats.into())
     }
 
     // Converts delta cursor movement into musical time
     pub fn delta_to_musical(&self, cursorx: f32) -> MusicalTime {
-        let beats = (cursorx / self.width) * (self.end_time.0 - self.start_time.0) as f32;
+        let beats = self.start_time.0
+            + (cursorx / self.width) as f64 * (self.end_time.0 - self.start_time.0);
         MusicalTime::new(beats.into())
     }
 }
@@ -304,10 +279,12 @@ pub enum TimelineViewEvent {
 pub struct ScrollBar {
     drag_start: bool,
     drag_end: bool,
+    dragging: bool,
 
     // When clicked
     start_time: MusicalTime,
     end_time: MusicalTime,
+    left_edge: f32,
 }
 
 impl ScrollBar {
@@ -315,9 +292,12 @@ impl ScrollBar {
         Self {
             drag_start: false,
             drag_end: false,
+            dragging: false,
 
             start_time: MusicalTime::new(0.0),
             end_time: MusicalTime::new(0.0),
+
+            left_edge: 0.0,
         }
         .build2(cx, |cx| {})
     }
@@ -333,14 +313,15 @@ impl View for ScrollBar {
                             cx.mouse.left.pos_down.0 - cx.cache.get_posx(cx.current);
                         if local_click_pos >= 0.0 && local_click_pos <= 5.0 {
                             self.drag_start = true;
-                        }
-
-                        if local_click_pos >= cx.cache.get_width(cx.current) - 5.0
+                            self.left_edge = cx.cache.get_posx(cx.current);
+                        } else if local_click_pos >= cx.cache.get_width(cx.current) - 5.0
                             && local_click_pos <= cx.cache.get_width(cx.current)
                         {
                             self.drag_end = true;
+                        } else {
+                            self.dragging = true;
+                            self.left_edge = cx.cache.get_posx(cx.current);
                         }
-
                         cx.captured = cx.current;
 
                         if let Some(timeline_view_state) = cx.data::<TimelineViewState>() {
@@ -354,6 +335,7 @@ impl View for ScrollBar {
                     if event.target == cx.current {
                         self.drag_start = false;
                         self.drag_end = false;
+                        self.dragging = false;
                         cx.captured = Entity::null();
                         if cx.hovered != cx.current {
                             cx.emit(WindowEvent::SetCursor(CursorIcon::Default));
@@ -378,15 +360,35 @@ impl View for ScrollBar {
                     }
                     if let Some(timeline_view_state) = cx.data::<TimelineViewState>() {
                         let timeline_width = timeline_view_state.width;
+                        let timeline_posx = timeline_view_state.posx;
                         let start_time = timeline_view_state.start_time;
                         let end_time = timeline_view_state.end_time;
+
+                        if self.dragging {
+                            //let mut delta = (*x - timeline_posx) / timeline_width;
+                            let delta = (*x - cx.mouse.left.pos_down.0) / timeline_width;
+                            let start_time =
+                                MusicalTime::new(delta.into()) * (self.end_time - self.start_time);
+                            println!("Start Time: {:?}", self.start_time + start_time);
+                        }
+
                         if self.drag_end {
-                            let mut delta = (*x - cx.cache.get_posx(cx.current)) / timeline_width;
-                            delta = delta.clamp(0.2, 1.0);
+                            let mut delta = (*x - timeline_posx) / timeline_width;
+                            delta = delta.clamp(0.0, 1.0);
                             let end_time =
                                 MusicalTime::new(delta.into()) * (self.end_time - self.start_time);
                             println!("Timeline End: {:?}", end_time);
                             cx.emit(TimelineViewEvent::SetEndTime(end_time));
+                        }
+
+                        if self.drag_start {
+                            let mut delta = (*x - timeline_posx) / timeline_width;
+                            println!("delta: {}", delta);
+                            delta = delta.clamp(0.0, 1.0);
+                            let start_time =
+                                MusicalTime::new(delta.into()) * (self.end_time - self.start_time);
+                            println!("Timeline Start: {:?}", start_time);
+                            cx.emit(TimelineViewEvent::SetStartTime(start_time));
                         }
                     }
                 }
