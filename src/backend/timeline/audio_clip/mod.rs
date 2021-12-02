@@ -229,6 +229,10 @@ impl AudioClipHandle {
         self.info.set(Shared::new(&self.coll_handle, new_info));
     }
 
+    pub fn resource(&self) -> Shared<AudioClipResource> {
+        Shared::clone(&self.info.get().resource)
+    }
+
     pub(super) fn update_tempo_map(&mut self, tempo_map: &TempoMap, state: &AudioClipState) {
         let mut new_info = AudioClipProcInfo::clone(&self.info.get());
         new_info.timeline_start = tempo_map.musical_to_nearest_sample_round(state.timeline_start);

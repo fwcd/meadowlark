@@ -74,7 +74,9 @@ impl Hash for ResourceKey {
 pub struct AudioClipResource {
     pub pcm: Shared<AnyPcm>,
 
-    /// This is the start offset from the start of the original resource.
+    /// This is the start offset from the start of the original resource. This is
+    /// so we can save on memory if we have multiple audio clips that reference
+    /// different portions of the same PCM data.
     pub original_offset: SampleTime,
 
     pub resampled_type: ResampledType,
