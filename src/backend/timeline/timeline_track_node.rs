@@ -128,7 +128,6 @@ impl TimelineTrackNode {
         state: &TimelineTrackState,
         resource_cache: &ResourceCache,
         tempo_map: &TempoMap,
-        sample_rate: SampleRate,
         coll_handle: &Handle,
     ) -> (Self, TimelineTrackHandle, Vec<ResourceLoadError>) {
         let mut audio_clip_procs = Vec::<AudioClipProcess>::new();
@@ -163,7 +162,7 @@ impl TimelineTrackNode {
             TimelineTrackHandle {
                 audio_clip_handles,
                 process,
-                sample_rate,
+                sample_rate: tempo_map.sample_rate,
                 coll_handle: coll_handle.clone(),
             },
             audio_clip_errors,
