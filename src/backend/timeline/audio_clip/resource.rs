@@ -72,6 +72,8 @@ impl Hash for ResourceKey {
 }
 
 pub struct AudioClipResource {
+    /// The raw PCM resource. Note that this will always have "offline effects"
+    /// including resampling to the project's sample-rate already applied.
     pub pcm: Shared<AnyPcm>,
 
     /// This is the start offset from the start of the original resource. This is
