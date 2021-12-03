@@ -18,6 +18,7 @@ im = "15.0"
 
 # vizia = {path = "../vizia", features = ["meadowlark"]}
 vizia = {git = "https://github.com/geom3trik/VIZIA", branch = "main", features = ["meadowlark"]}
+audio-waveform-mipmap = {git = "https://github.com/RustyDAW/audio-waveform-mipmap", branch = "main"}
 ringbuf = "0.2"
 basedrop = "0.1"
 llq = "0.1"

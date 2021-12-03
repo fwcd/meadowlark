@@ -1,12 +1,21 @@
-use rusty_daw_core::MusicalTime;
+use std::rc::Rc;
+
+use rusty_daw_core::{pcm::AnyPCM, MusicalTime};
 use vizia::*;
 
-use crate::state::{
-    ui_state::{TimelineSelectionEvent, TimelineSelectionUiState},
-    AppEvent,
+use femtovg::{Align, Baseline, Paint, Path};
+
+use crate::{
+    backend::AnyPcm,
+    state::{
+        ui_state::{TimelineSelectionEvent, TimelineSelectionUiState},
+        AppEvent, StateSystem,
+    },
 };
 
 use super::timeline_view::TimelineViewState;
+
+use audio_waveform_mipmap::{Waveform, WaveformConfig};
 
 pub struct Clip {
     track_id: usize,
@@ -29,6 +38,40 @@ impl Clip {
                 cx.focused = cx.current;
 
                 if cx.data::<ClipData>().is_none() {
+                    let mut waveform = Waveform::default();
+
+                    if let Some(state_system) = cx.data::<StateSystem>() {
+                        if let Some(project) = state_system.get_project() {
+                            if let Some((_, track)) = project.timeline_track_handles.get(track_id) {
+                                let (_, timeline_tracks_state) =
+                                    project.save_state.timeline_tracks();
+                                if let Some((clip, _)) = track.audio_clip(
+                                    clip_id,
+                                    timeline_tracks_state.get(track_id).unwrap(),
+                                ) {
+                                    let data = clip.resource();
+                                    match &*data.pcm {
+                                        AnyPcm::Mono(audio_data) => {
+                                            let samples = audio_data.data();
+                                            println!("samples: {}", samples.len());
+                                            waveform =
+                                                Waveform::new(samples, WaveformConfig::default());
+                                        }
+
+                                        AnyPcm::Stereo(audio_data) => {
+                                            let samples = audio_data.left();
+                                            println!("samples: {}", samples.len());
+                                            waveform =
+                                                Waveform::new(samples, WaveformConfig::default());
+                                        }
+
+                                        _ => {}
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     // Create some internal slider data (not exposed to the user)
                     ClipData {
                         dragging: false,
@@ -36,6 +79,7 @@ impl Clip {
                         resize_end: false,
                         start_time: clip_start,
                         end_time: clip_end,
+                        waveform: Rc::new(waveform),
                     }
                     .build(cx);
                 }
@@ -43,7 +87,7 @@ impl Clip {
                 Label::new(cx, &clip_name)
                     .height(Pixels(20.0))
                     .width(Stretch(1.0))
-                    .background_color(Color::rgb(254, 64, 64))
+                    .background_color(Color::rgb(251, 144, 96))
                     .class("clip_header")
                     .on_press(cx, move |cx| {
                         cx.emit(ClipEvent::SetDragging(true));
@@ -51,7 +95,7 @@ impl Clip {
                             track_id, track_id, clip_start, clip_end,
                         ));
                     });
-                Element::new(cx).background_color(Color::rgba(242, 77, 66, 15));
+                Element::new(cx).background_color(Color::rgba(235, 136, 92, 15));
             })
             .position_type(PositionType::SelfDirected)
     }
@@ -254,6 +298,10 @@ impl View for Clip {
                         }
                     }
 
+                    Code::Escape => {
+                        cx.emit(TimelineSelectionEvent::SelectNone);
+                    }
+
                     _ => {}
                 },
 
@@ -261,9 +309,99 @@ impl View for Clip {
             }
         }
     }
+
+    fn draw(&self, cx: &Context, canvas: &mut Canvas) {
+        let bounds = cx.cache.get_bounds(cx.current);
+        let header_height = 20.0;
+
+        let clipy = bounds.y + header_height;
+        let cliph = bounds.h - header_height;
+
+        canvas.save();
+
+        canvas.scissor(bounds.x, bounds.y, bounds.w, bounds.h);
+
+        let background_color =
+            cx.style.borrow().background_color.get(cx.current).cloned().unwrap_or_default();
+
+        let opacity = cx.cache.get_opacity(cx.current);
+
+        let mut background_color: femtovg::Color = background_color.into();
+        background_color.set_alphaf(background_color.a * opacity);
+
+        let mut path = Path::new();
+        path.rect(bounds.x, bounds.y, bounds.w, bounds.h);
+        canvas.fill_path(&mut path, Paint::color(background_color));
+
+        if let Some(state_system) = cx.data::<StateSystem>() {
+            if let Some(project) = state_system.get_project() {
+                if let Some((_, track)) = project.timeline_track_handles.get(self.track_id) {
+                    let (_, timeline_tracks_state) = project.save_state.timeline_tracks();
+                    if let Some((clip, _)) = track
+                        .audio_clip(self.clip_id, timeline_tracks_state.get(self.track_id).unwrap())
+                    {
+                        let data = clip.resource();
+                        match &*data.pcm {
+                            AnyPcm::Mono(audio_data) => {
+                                let samples = audio_data.data();
+                                if let Some(clip_data) = cx.data::<ClipData>() {
+                                    for (x, min, max) in clip_data.waveform.query(
+                                        samples,
+                                        0.0,
+                                        18000.0,
+                                        bounds.w as usize,
+                                    ) {
+                                        //println!("x {} min: {} max: {}", x, min, max);
+                                    }
+                                }
+                            }
+
+                            AnyPcm::Stereo(audio_data) => {
+                                //println!("Draw Clip: {} {} {}", cx.current, self.track_id, self.clip_id);
+                                let samples = audio_data.left();
+                                if let Some(clip_data) = cx.data::<ClipData>() {
+                                    let mut path = Path::new();
+                                    path.move_to(bounds.x, clipy + cliph / 2.0);
+                                    for (x, min, max) in clip_data.waveform.query(
+                                        samples,
+                                        0.0,
+                                        18000.0,
+                                        bounds.w as usize,
+                                    ) {
+                                        //println!("x {} min: {} max: {}", x, min, max);
+                                        path.line_to(
+                                            bounds.x + x,
+                                            clipy + cliph / 2.0 - min * cliph / 2.0,
+                                        );
+                                        path.line_to(
+                                            bounds.x + x,
+                                            clipy + cliph / 2.0 - max * cliph / 2.0,
+                                        );
+                                    }
+                                    let mut paint =
+                                        Paint::color(femtovg::Color::rgba(254, 217, 200, 255));
+                                    paint.set_line_width(1.0);
+                                    paint.set_anti_alias(false);
+                                    canvas.stroke_path(&mut path, paint);
+                                }
+                            }
+
+                            _ => {}
+                        }
+                    } else {
+                        println!("No CLip");
+                    }
+                } else {
+                    println!("No Track");
+                }
+            }
+        }
+
+        canvas.restore();
+    }
 }
 
-#[derive(Debug, Clone, Data, Lens)]
+#[derive(Clone, Data, Lens)]
 pub struct ClipData {
     dragging: bool,
     resize_start: bool,
@@ -272,6 +410,8 @@ pub struct ClipData {
     start_time: MusicalTime,
 
     end_time: MusicalTime,
+    #[data(ignore)]
+    waveform: Rc<Waveform>,
 }
 
 #[derive(Debug)]

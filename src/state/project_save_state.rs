@@ -16,6 +16,10 @@ pub struct ProjectSaveState {
 }
 
 impl ProjectSaveState {
+    pub fn timeline_tracks(&self) -> (&TempoMap, &Vec<TimelineTrackState>) {
+        (&self.backend_core.tempo_map, &self.timeline_tracks)
+    }
+
     pub fn timeline_tracks_mut(&mut self) -> (&TempoMap, &mut Vec<TimelineTrackState>) {
         (&self.backend_core.tempo_map, &mut self.timeline_tracks)
     }

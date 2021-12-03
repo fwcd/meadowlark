@@ -15,9 +15,9 @@ use super::ProjectSaveState;
 
 pub struct Project {
     stream: Stream,
-    save_state: ProjectSaveState,
+    pub save_state: ProjectSaveState,
     backend_core_handle: BackendCoreHandle,
-    timeline_track_handles: Vec<(NodeRef, TimelineTrackHandle)>,
+    pub timeline_track_handles: Vec<(NodeRef, TimelineTrackHandle)>,
 }
 
 /// This struct is responsible for managing and mutating state of the entire application.
@@ -35,6 +35,14 @@ pub struct StateSystem {
 impl StateSystem {
     pub fn new() -> Self {
         Self { project: None, ui_state: UiState::default(), undo_stack: VecDeque::new() }
+    }
+
+    pub fn get_project(&self) -> Option<&Project> {
+        if let Some(project) = &self.project {
+            Some(project)
+        } else {
+            None
+        }
     }
 
     pub fn get_ui_state(&self) -> &UiState {

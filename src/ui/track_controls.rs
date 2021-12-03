@@ -130,8 +130,8 @@ impl TrackControls {
                     HStack::new(cx, move |cx| {
                         // Track color
                         Element::new(cx)
-                            .width(Pixels(10.0))
-                            .background_color(Color::rgb(254, 64, 64));
+                            .width(Pixels(15.0))
+                            .background_color(Color::rgb(251, 144, 96));
                         VStack::new(cx, move |cx| {
                             HStack::new(cx, move |cx| {
                                 let track_data = track_data.get(cx).clone();
