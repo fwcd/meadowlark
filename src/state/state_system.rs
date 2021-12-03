@@ -1,14 +1,17 @@
 use std::collections::VecDeque;
 
 use cpal::Stream;
-use rusty_daw_audio_graph::{NodeRef, PortType};
+use rusty_daw_audio_graph::{GraphStateRef, NodeRef, PortType};
 use rusty_daw_core::{MusicalTime, SampleRate};
 use vizia::{Lens, Model};
 
 use crate::backend::timeline::{
     AudioClipFades, AudioClipState, LoopState, TimelineTrackHandle, TimelineTrackNode,
+    TimelineTrackState,
 };
-use crate::backend::{BackendCoreHandle, BackendCoreState, ResourceLoadError};
+use crate::backend::{
+    BackendCoreHandle, GlobalNodeData, ResourceCache, ResourceLoadError, MAX_BLOCKSIZE,
+};
 
 use super::ui_state::{AudioClipUiState, LoopUiState, TimelineTrackUiState, UiState};
 use super::ProjectSaveState;
@@ -30,11 +33,19 @@ pub struct StateSystem {
     project: Option<Project>,
     ui_state: UiState,
     undo_stack: VecDeque<AppEvent>,
+
+    #[lens(ignore)]
+    next_empty_track_num: usize,
 }
 
 impl StateSystem {
     pub fn new() -> Self {
-        Self { project: None, ui_state: UiState::default(), undo_stack: VecDeque::new() }
+        Self {
+            project: None,
+            ui_state: UiState::default(),
+            undo_stack: VecDeque::new(),
+            next_empty_track_num: 1,
+        }
     }
 
     pub fn get_project(&self) -> Option<&Project> {
@@ -85,45 +96,16 @@ impl StateSystem {
             // TODO: errors and reverting to previous working state
             backend_core_handle
                 .modify_graph(|mut graph, resource_cache| {
-                    let root_node_ref = graph.root_node();
-
                     for timeline_track_state in project_state.timeline_tracks.iter() {
                         // --- Load timeline track in backend ----------------------
-
-                        save_state.timeline_tracks.push(timeline_track_state.clone());
-
-                        let (timeline_track_node, timeline_track_handle, mut res) =
-                            TimelineTrackNode::new(
-                                timeline_track_state,
-                                resource_cache,
-                                &project_state.backend_core.tempo_map,
-                                sample_rate,
-                                graph.coll_handle(),
-                            );
-
-                        // Append any errors that happened while loading resources.
-                        resource_load_errors.append(&mut res);
-
-                        // Add the track node to the graph.
-                        let timeline_track_node_ref =
-                            graph.add_new_node(Box::new(timeline_track_node));
-
-                        // Keep a reference and a handle to the track node.
-                        timeline_track_handles
-                            .push((timeline_track_node_ref, timeline_track_handle));
-
-                        // Connect the track node to the root node.
-                        //
-                        // TODO: Handle errors.
-                        graph
-                            .connect_ports(
-                                PortType::StereoAudio,
-                                timeline_track_node_ref,
-                                0,
-                                root_node_ref,
-                                0,
-                            )
-                            .unwrap();
+                        add_track_to_graph(
+                            timeline_track_state.clone(),
+                            &mut save_state,
+                            &mut timeline_track_handles,
+                            &mut graph,
+                            resource_cache,
+                            &mut resource_load_errors,
+                        );
 
                         // --- Load timeline track in UI ---------------------------
 
@@ -140,9 +122,12 @@ impl StateSystem {
                 })
                 .unwrap();
 
+            for e in resource_load_errors.iter() {
+                // TODO: Alert user of resources that failed to load from disk
+            }
+
             self.project =
                 Some(Project { stream, save_state, backend_core_handle, timeline_track_handles });
-
             self.ui_state.backend_loaded = true;
         } else {
             // TODO: Better errors
@@ -371,12 +356,14 @@ impl StateSystem {
                         },
                     };
 
-                    track.add_audio_clip(
+                    if let Err(e) = track.add_audio_clip(
                         clip_state,
                         project.backend_core_handle.resource_cache(),
                         tempo_map,
                         timeline_tracks_state.get_mut(track_id).unwrap(),
-                    );
+                    ) {
+                        // TODO: Alert user that there was an error loading the resource from disk.
+                    }
                 }
             }
         }
@@ -416,26 +403,14 @@ impl StateSystem {
 
             if let Some(project) = &mut self.project {
                 if let Some((_, track)) = project.timeline_track_handles.get_mut(track_id) {
-                    let (tempo_map, timeline_tracks_state) =
-                        project.save_state.timeline_tracks_mut();
+                    let (_, timeline_tracks_state) = project.save_state.timeline_tracks_mut();
 
-                    let clip_state = AudioClipState {
-                        name: selected_clip.name.clone(),
-                        pcm_path: selected_clip.pcm_path.clone(),
-                        timeline_start: selected_clip.timeline_start,
-                        duration: selected_clip.duration,
-                        clip_start_offset: selected_clip.clip_start_offset,
-                        clip_gain_db: selected_clip.clip_gain_db,
-                        fades: AudioClipFades {
-                            start_fade_duration: selected_clip.fades.start_fade_duration,
-                            end_fade_duration: selected_clip.fades.end_fade_duration,
-                        },
-                    };
-
-                    track.remove_audio_clip(
+                    if let Err(_) = track.remove_audio_clip(
                         *clip_id,
                         timeline_tracks_state.get_mut(track_id).unwrap(),
-                    );
+                    ) {
+                        // TODO: Handle error
+                    }
                 }
             }
 
@@ -445,8 +420,38 @@ impl StateSystem {
         }
     }
 
-    pub fn add_track(&mut self) {
-        todo!();
+    pub fn add_track(&mut self, new_track_state: TimelineTrackState) {
+        // --- Load timeline track in UI ---------------------------
+        self.ui_state.timeline_tracks.push(TimelineTrackUiState {
+            name: new_track_state.name.clone(),
+            height: 150.0,
+            audio_clips: new_track_state.audio_clips.iter().map(|s| s.into()).collect(),
+        });
+
+        // --- Load timeline track in backend ----------------------
+        if let Some(project) = &mut self.project {
+            let mut resource_load_errors: Vec<ResourceLoadError> = Vec::new();
+
+            let Project { save_state, backend_core_handle, timeline_track_handles, .. } = project;
+
+            // TODO: errors and reverting to previous working state
+            backend_core_handle
+                .modify_graph(|mut graph, resource_cache| {
+                    add_track_to_graph(
+                        new_track_state,
+                        save_state,
+                        timeline_track_handles,
+                        &mut graph,
+                        resource_cache,
+                        &mut resource_load_errors,
+                    );
+                })
+                .unwrap();
+
+            for e in resource_load_errors.iter() {
+                // TODO: Alert user of resources that failed to load from disk
+            }
+        }
     }
 
     pub fn sync_playhead(&mut self) {
@@ -547,7 +552,10 @@ impl Model for StateSystem {
 
                 // TRACK
                 AppEvent::AddTrack => {
-                    self.add_track();
+                    let name = format!("Track {}", self.next_empty_track_num);
+                    self.next_empty_track_num += 1;
+
+                    self.add_track(TimelineTrackState { name, audio_clips: Vec::new() });
                 }
 
                 AppEvent::SetTrackHeight(track_id, track_height) => {
@@ -569,4 +577,38 @@ impl Model for StateSystem {
             }
         }
     }
+}
+
+fn add_track_to_graph(
+    new_track_state: TimelineTrackState,
+    project_save_state: &mut ProjectSaveState,
+    timeline_track_handles: &mut Vec<(NodeRef, TimelineTrackHandle)>,
+    graph: &mut GraphStateRef<GlobalNodeData, MAX_BLOCKSIZE>,
+    resource_cache: &ResourceCache,
+    resource_load_errors: &mut Vec<ResourceLoadError>,
+) {
+    let root_node_ref = graph.root_node();
+
+    let (tempo_map, tracks) = project_save_state.timeline_tracks_mut();
+
+    let (timeline_track_node, timeline_track_handle, mut res) =
+        TimelineTrackNode::new(&new_track_state, resource_cache, &tempo_map, graph.coll_handle());
+
+    tracks.push(new_track_state);
+
+    // Append any errors while loading resources from disk.
+    resource_load_errors.append(&mut res);
+
+    // Add the track node to the graph.
+    let timeline_track_node_ref = graph.add_new_node(Box::new(timeline_track_node));
+
+    // Keep a reference and a handle to the track node.
+    timeline_track_handles.push((timeline_track_node_ref, timeline_track_handle));
+
+    // Connect the track node to the root node.
+    //
+    // TODO: Handle errors.
+    graph
+        .connect_ports(PortType::StereoAudio, timeline_track_node_ref, 0, root_node_ref, 0)
+        .unwrap();
 }
