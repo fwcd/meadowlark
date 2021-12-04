@@ -79,7 +79,6 @@ impl View for TrackControlsView {
                 }
 
                 WindowEvent::MouseMove(x, _) => {
-                    //if event.target == cx.current {
                     if self.resizing {
                         cx.emit(WindowEvent::SetCursor(CursorIcon::EResize));
                         let mut right = *x - cx.cache.get_posx(cx.current);
@@ -92,19 +91,7 @@ impl View for TrackControlsView {
                             .insert(cx.current, Pixels(right - cx.cache.get_posx(cx.current)));
                         cx.style.borrow_mut().needs_relayout = true;
                         cx.style.borrow_mut().needs_redraw = true;
-                    } else {
-                        if *x
-                            >= cx.cache.get_posx(cx.current) + cx.cache.get_width(cx.current) - 5.0
-                            && *x < cx.cache.get_posx(cx.current) + cx.cache.get_width(cx.current)
-                        {
-                            cx.emit(WindowEvent::SetCursor(CursorIcon::EResize));
-                        }
-                        // else {
-                        //     cx.emit(WindowEvent::SetCursor(CursorIcon::Default));
-                        // }
                     }
-
-                    //}
                 }
 
                 _ => {}
@@ -125,37 +112,54 @@ impl TrackControls {
     {
         Self { resizing: false, track_id }
             .build2(cx, move |cx| {
-                HStack::new(cx, move |cx| {
-                    // Track Controls
+                VStack::new(cx, move |cx| {
                     HStack::new(cx, move |cx| {
-                        // Track color
-                        Element::new(cx)
-                            .width(Pixels(15.0))
-                            .background_color(Color::rgb(251, 144, 96));
-                        VStack::new(cx, move |cx| {
-                            HStack::new(cx, move |cx| {
-                                let track_data = track_data.get(cx).clone();
+                        // Track Controls
+                        HStack::new(cx, move |cx| {
+                            // Track color
+                            Element::new(cx)
+                                .width(Pixels(15.0))
+                                .background_color(Color::rgb(251, 144, 96));
+                            VStack::new(cx, move |cx| {
+                                HStack::new(cx, move |cx| {
+                                    let track_data = track_data.get(cx).clone();
 
-                                Label::new(cx, &track_data.name);
-                                // Record Button
-                                Button::new(cx, |_| {}, |_| {})
-                                    .width(Pixels(30.0))
-                                    .height(Pixels(30.0));
-                                // Solo Button
-                                Button::new(cx, |_| {}, |_| {})
-                                    .width(Pixels(30.0))
-                                    .height(Pixels(30.0));
-                                // Mute Button
-                                Button::new(cx, |_| {}, |_| {})
-                                    .width(Pixels(30.0))
-                                    .height(Pixels(30.0));
-                            });
-                        })
-                        .background_color(Color::rgb(179, 172, 174));
-                    });
-                    // Clips
-                })
-                .height(Pixels(track_data.get(cx).height));
+                                    Label::new(cx, &track_data.name);
+                                    // Record Button
+                                    Button::new(cx, |_| {}, |_| {})
+                                        .width(Pixels(30.0))
+                                        .height(Pixels(30.0));
+                                    // Solo Button
+                                    Button::new(cx, |_| {}, |_| {})
+                                        .width(Pixels(30.0))
+                                        .height(Pixels(30.0));
+                                    // Mute Button
+                                    Button::new(cx, |_| {}, |_| {})
+                                        .width(Pixels(30.0))
+                                        .height(Pixels(30.0));
+                                });
+                            })
+                            .background_color(Color::rgb(179, 172, 174));
+                            Element::new(cx)
+                                .position_type(PositionType::SelfDirected)
+                                .left(Stretch(1.0))
+                                .right(Pixels(0.0))
+                                .width(Pixels(5.0))
+                                //.background_color(Color::red())
+                                .class("resize_ew");
+                        });
+                        // Clips
+                    })
+                    .height(Pixels(track_data.get(cx).height));
+
+                    Element::new(cx)
+                        .position_type(PositionType::SelfDirected)
+                        .top(Stretch(1.0))
+                        .bottom(Pixels(0.0))
+                        .height(Pixels(5.0))
+                        //.background_color(Color::red())
+                        .class("resize_ns");
+                });
             })
             .height(Auto)
     }

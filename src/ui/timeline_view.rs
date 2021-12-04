@@ -71,10 +71,8 @@ pub fn timeline_view(cx: &mut Context) {
                                         match loop_state {
                                             LoopUiState::Active { loop_start, loop_end } => {
                                                 let loop_start_pos = (loop_start.0 - start_beats.0)
-                                                    .max(0.0)
                                                     / (end_beats.0 - start_beats.0);
                                                 let loop_end_pos = (loop_end.0 - start_beats.0)
-                                                    .max(0.0)
                                                     / (end_beats.0 - start_beats.0);
                                                 //println!("loop_start: {:?} loop_end: {:?} start_beats: {:?} end_beats: {:?}", loop_start, loop_end, start_beats, end_beats);
                                                 let should_display = *loop_start >= start_beats
@@ -158,6 +156,7 @@ pub fn timeline_view(cx: &mut Context) {
             });
         })
         .background_color(Color::rgb(42, 37, 39))
+        .overflow(Overflow::Hidden)
         .on_move(cx, |cx, x, y| {
             if x >= cx.cache.get_posx(cx.current) + cx.cache.get_width(cx.current) - 10.0
                 && x <= cx.cache.get_posx(cx.current) + cx.cache.get_width(cx.current)
@@ -237,11 +236,15 @@ impl Model for TimelineViewState {
                 }
 
                 TimelineViewEvent::SetStartTime(start_time) => {
-                    self.start_time = *start_time;
+                    if self.end_time - *start_time >= MusicalTime::new(0.2) {
+                        self.start_time = *start_time;
+                    }
                 }
 
                 TimelineViewEvent::SetEndTime(end_time) => {
-                    self.end_time = *end_time;
+                    if *end_time - self.start_time >= MusicalTime::new(0.2) {
+                        self.end_time = *end_time;
+                    }
                 }
 
                 TimelineViewEvent::SetTimelineStart(timeline_start) => {
@@ -377,17 +380,14 @@ impl View for ScrollBar {
                             delta = delta.clamp(0.0, 1.0);
                             let end_time =
                                 MusicalTime::new(delta.into()) * (self.end_time - self.start_time);
-                            println!("Timeline End: {:?}", end_time);
                             cx.emit(TimelineViewEvent::SetEndTime(end_time));
                         }
 
                         if self.drag_start {
                             let mut delta = (*x - timeline_posx) / timeline_width;
-                            println!("delta: {}", delta);
                             delta = delta.clamp(0.0, 1.0);
                             let start_time =
                                 MusicalTime::new(delta.into()) * (self.end_time - self.start_time);
-                            println!("Timeline Start: {:?}", start_time);
                             cx.emit(TimelineViewEvent::SetStartTime(start_time));
                         }
                     }

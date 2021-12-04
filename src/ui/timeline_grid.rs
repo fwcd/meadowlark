@@ -1,3 +1,5 @@
+use std::fmt::format;
+
 use vizia::*;
 
 use super::timeline_view::TimelineViewState;
@@ -21,6 +23,10 @@ impl View for TimelineGrid {
             let timeline_width = timeline_view.width;
 
             let bounds = cx.cache.get_bounds(cx.current);
+
+            let pixels_per_beat = timeline_width / (end_time - start_time).0 as f32;
+
+            //println!("Pixels per beat: {}", pixels_per_beat);
 
             let font = cx.style.borrow().font.get(cx.current).cloned().unwrap_or_default();
 
@@ -67,6 +73,73 @@ impl View for TimelineGrid {
                     &(i + 1).to_string(),
                     text_paint,
                 );
+
+                if pixels_per_beat >= 100.0 && pixels_per_beat < 400.0 {
+                    for j in 1..4 {
+                        let ratio = (i as f64 + j as f64 * 0.25 - start_time.0)
+                            / (end_time.0 - start_time.0);
+                        let mut path = Path::new();
+                        path.move_to(bounds.x + (ratio as f32 * timeline_width).floor(), bounds.y);
+                        path.line_to(
+                            bounds.x + (ratio as f32 * timeline_width).floor(),
+                            bounds.y + bounds.h,
+                        );
+                        canvas
+                            .stroke_path(&mut path, Paint::color(femtovg::Color::rgb(46, 46, 46)));
+
+                        // let mut text_paint = Paint::color(femtovg::Color::rgb(255, 255, 255));
+                        // text_paint.set_font(&[font_id.clone()]);
+                        // text_paint.set_text_align(Align::Left);
+                        // text_paint.set_text_baseline(Baseline::Top);
+                        // canvas.fill_text(
+                        //     bounds.x + (ratio as f32 * timeline_width).floor() + 2.0,
+                        //     bounds.y,
+                        //     &(i + 1).to_string(),
+                        //     text_paint,
+                        // );
+                    }
+                }
+
+                if pixels_per_beat >= 300.0 {
+                    for j in 1..4 {
+                        let ratio = (i as f64 + j as f64 * 0.25 - start_time.0)
+                            / (end_time.0 - start_time.0);
+                        let mut text_paint = Paint::color(femtovg::Color::rgb(255, 255, 255));
+                        text_paint.set_font(&[font_id.clone()]);
+                        text_paint.set_text_align(Align::Left);
+                        text_paint.set_text_baseline(Baseline::Top);
+                        canvas.fill_text(
+                            bounds.x + (ratio as f32 * timeline_width).floor() + 2.0,
+                            bounds.y,
+                            &format!("{}.{}", i + 1, j + 1),
+                            text_paint,
+                        );
+                    }
+                }
+
+                if pixels_per_beat >= 400.0 {
+                    for j in 1..16 {
+                        let ratio = (i as f64 + j as f64 * 0.0625 - start_time.0)
+                            / (end_time.0 - start_time.0);
+                        let mut path = Path::new();
+                        path.move_to(bounds.x + (ratio as f32 * timeline_width).floor(), bounds.y);
+                        path.line_to(
+                            bounds.x + (ratio as f32 * timeline_width).floor(),
+                            bounds.y + bounds.h,
+                        );
+                        if j % 4 == 0 {
+                            canvas.stroke_path(
+                                &mut path,
+                                Paint::color(femtovg::Color::rgb(46, 46, 46)),
+                            );
+                        } else {
+                            canvas.stroke_path(
+                                &mut path,
+                                Paint::color(femtovg::Color::rgb(56, 56, 56)),
+                            );
+                        }
+                    }
+                }
             }
 
             canvas.restore();

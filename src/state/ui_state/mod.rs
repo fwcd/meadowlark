@@ -78,7 +78,7 @@ impl Model for TimelineSelectionUiState {
         if let Some(timeline_selection_event) = event.message.downcast() {
             match timeline_selection_event {
                 TimelineSelectionEvent::SetHoveredTrack(track_id) => {
-                    println!("Hovered Track: {}", track_id);
+                    //println!("Hovered Track: {}", track_id);
                     self.hovered_track = *track_id;
                 }
 

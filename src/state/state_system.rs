@@ -150,7 +150,9 @@ impl StateSystem {
     pub fn set_loop_end(&mut self, new_loop_end: MusicalTime) {
         let loop_start = match &mut self.ui_state.timeline_transport.loop_state {
             LoopUiState::Active { loop_start, loop_end } => {
-                *loop_end = new_loop_end;
+                if new_loop_end - *loop_start >= MusicalTime::new(0.1) {
+                    *loop_end = new_loop_end;
+                }
                 *loop_start
             }
 
@@ -176,10 +178,14 @@ impl StateSystem {
     }
 
     // FIX ME
-    pub fn set_loop_start(&mut self, new_loop_start: MusicalTime) {
+    pub fn set_loop_start(&mut self, mut new_loop_start: MusicalTime) {
+        new_loop_start = MusicalTime::new(new_loop_start.0.max(0.0));
         let loop_end = match &mut self.ui_state.timeline_transport.loop_state {
             LoopUiState::Active { loop_start, loop_end } => {
-                *loop_start = new_loop_start;
+                if *loop_end - new_loop_start >= MusicalTime::new(0.1) {
+                    *loop_start = new_loop_start;
+                }
+
                 *loop_end
             }
 

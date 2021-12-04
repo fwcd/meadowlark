@@ -53,14 +53,14 @@ impl Clip {
                                     match &*data.pcm {
                                         AnyPcm::Mono(audio_data) => {
                                             let samples = audio_data.data();
-                                            println!("samples: {}", samples.len());
+                                            //println!("samples: {}", samples.len());
                                             waveform =
                                                 Waveform::new(samples, WaveformConfig::default());
                                         }
 
                                         AnyPcm::Stereo(audio_data) => {
                                             let samples = audio_data.left();
-                                            println!("samples: {}", samples.len());
+                                            //println!("samples: {}", samples.len());
                                             waveform =
                                                 Waveform::new(samples, WaveformConfig::default());
                                         }
@@ -143,12 +143,26 @@ impl View for Clip {
                             let mut musical_delta =
                                 timeline_view_state.delta_to_musical(*x - cx.mouse.left.pos_down.0);
 
-                            // Snapping
-                            musical_delta = MusicalTime::new(musical_delta.0.round());
-
                             let mut musical_pos = timeline_view_state.cursor_to_musical(*x);
 
-                            musical_pos = MusicalTime::new(musical_pos.0.round());
+                            let pixels_per_beat = timeline_view_state.width
+                                / (timeline_view_state.end_time - timeline_view_state.start_time).0
+                                    as f32;
+
+                            // Snapping
+                            if pixels_per_beat >= 100.0 && pixels_per_beat < 400.0 {
+                                musical_delta =
+                                    MusicalTime::new((musical_delta.0 * 4.0).round() / 4.0);
+                                musical_pos = MusicalTime::new((musical_pos.0 * 4.0).round() / 4.0);
+                            } else if pixels_per_beat >= 400.0 {
+                                musical_delta =
+                                    MusicalTime::new((musical_delta.0 * 16.0).round() / 16.0);
+                                musical_pos =
+                                    MusicalTime::new((musical_pos.0 * 16.0).round() / 16.0);
+                            } else {
+                                musical_delta = MusicalTime::new(musical_delta.0.round());
+                                musical_pos = MusicalTime::new(musical_pos.0.round());
+                            }
 
                             if dragging {
                                 cx.emit(AppEvent::SetClipStart(
@@ -317,9 +331,9 @@ impl View for Clip {
         let clipy = bounds.y + header_height;
         let cliph = bounds.h - header_height;
 
-        canvas.save();
+        //canvas.save();
 
-        canvas.scissor(bounds.x, bounds.y, bounds.w, bounds.h);
+        //canvas.scissor(bounds.x, bounds.y, bounds.w, bounds.h);
 
         let background_color =
             cx.style.borrow().background_color.get(cx.current).cloned().unwrap_or_default();
@@ -336,12 +350,17 @@ impl View for Clip {
         if let Some(state_system) = cx.data::<StateSystem>() {
             if let Some(project) = state_system.get_project() {
                 if let Some((_, track)) = project.timeline_track_handles.get(self.track_id) {
-                    let (_, timeline_tracks_state) = project.save_state.timeline_tracks();
-                    if let Some((clip, _)) = track
+                    let (tempo_map, timeline_tracks_state) = project.save_state.timeline_tracks();
+                    if let Some((clip, clip_state)) = track
                         .audio_clip(self.clip_id, timeline_tracks_state.get(self.track_id).unwrap())
                     {
-                        let data = clip.resource();
-                        match &*data.pcm {
+                        let sample_duration =
+                            clip_state.duration.to_nearest_sample_ceil(tempo_map.sample_rate);
+
+                        let clip_resource = clip.resource();
+
+                        //println!("{} {}", clip_resource.original_offset.0 as f64, sample_duration.0 as f64);
+                        match &*clip_resource.pcm {
                             AnyPcm::Mono(audio_data) => {
                                 let samples = audio_data.data();
                                 if let Some(clip_data) = cx.data::<ClipData>() {
@@ -364,9 +383,9 @@ impl View for Clip {
                                     path.move_to(bounds.x, clipy + cliph / 2.0);
                                     for (x, min, max) in clip_data.waveform.query(
                                         samples,
-                                        0.0,
-                                        18000.0,
-                                        bounds.w as usize,
+                                        clip_resource.original_offset.0 as f64,
+                                        sample_duration.0 as f64,
+                                        bounds.w as usize + 1,
                                     ) {
                                         //println!("x {} min: {} max: {}", x, min, max);
                                         path.line_to(
@@ -388,16 +407,12 @@ impl View for Clip {
 
                             _ => {}
                         }
-                    } else {
-                        println!("No CLip");
                     }
-                } else {
-                    println!("No Track");
                 }
             }
         }
 
-        canvas.restore();
+        //canvas.restore();
     }
 }
 

@@ -55,6 +55,14 @@ const STYLE: &str = r#"
     .clip_header {
         cursor: grab;
     }
+
+    .resize_ew {
+        cursor: ew-resize;
+    }
+
+    .resize_ns {
+        cursor: ns-resize;
+    }
 "#;
 
 pub fn run() {

@@ -43,12 +43,10 @@ where
                             let duration = clip.duration.to_musical(*bpm.get(cx) as f64);
                             let clip_end = clip_start + duration;
 
-                            let clip_start_pos = timeline_width
-                                * (clip_start.0 - start_beats.0).max(0.0)
-                                / timeline_beats.0;
-                            let clip_end_pos = timeline_width
-                                * (clip_end.0 - start_beats.0).max(0.0)
-                                / timeline_beats.0;
+                            let clip_start_pos =
+                                timeline_width * (clip_start.0 - start_beats.0) / timeline_beats.0;
+                            let clip_end_pos =
+                                timeline_width * (clip_end.0 - start_beats.0) / timeline_beats.0;
 
                             let clip_width = clip_end_pos.floor() - clip_start_pos.floor();
 
