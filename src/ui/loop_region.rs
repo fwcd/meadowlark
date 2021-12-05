@@ -72,9 +72,26 @@ impl View for LoopRegion {
                     }
 
                     if let Some(timeline_view_state) = cx.data::<TimelineViewState>() {
+
+                        let pixels_per_beat = timeline_view_state.width
+                                / (timeline_view_state.end_time - timeline_view_state.start_time).0
+                                    as f32;
+
                         let mut musical_pos = timeline_view_state.cursor_to_musical(*x);
+
                         // Snapping
-                        musical_pos = MusicalTime::new(musical_pos.0.round());
+                        if pixels_per_beat >= 100.0 && pixels_per_beat < 400.0 {
+                            musical_pos = MusicalTime::new((musical_pos.0 * 4.0).round() / 4.0);
+                        } else if pixels_per_beat >= 400.0 {
+                            musical_pos =
+                                MusicalTime::new((musical_pos.0 * 16.0).round() / 16.0);
+                        } else {
+                            musical_pos = MusicalTime::new(musical_pos.0.round());
+                        }
+
+                        // // Snapping
+                        // musical_pos = MusicalTime::new(musical_pos.0.round());
+
                         if self.drag_end {
                             cx.emit(AppEvent::SetLoopEnd(musical_pos));
                         }

@@ -140,6 +140,9 @@ impl View for Clip {
                         }
 
                         if let Some(timeline_view_state) = cx.data::<TimelineViewState>() {
+                            let timeline_start = timeline_view_state.timeline_start;
+                            let timeline_end = timeline_view_state.timeline_end;
+
                             let mut musical_delta =
                                 timeline_view_state.delta_to_musical(*x - cx.mouse.left.pos_down.0);
 
@@ -164,19 +167,66 @@ impl View for Clip {
                                 musical_pos = MusicalTime::new(musical_pos.0.round());
                             }
 
-                            if dragging {
-                                cx.emit(AppEvent::SetClipStart(
-                                    self.track_id,
-                                    self.clip_id,
-                                    start_time + musical_delta,
-                                ));
 
-                                cx.emit(TimelineSelectionEvent::SetSelection(
-                                    self.track_id,
-                                    self.track_id,
-                                    start_time + musical_delta,
-                                    end_time + musical_delta,
-                                ));
+
+                            if dragging {
+
+                                if start_time.0 + musical_delta.0 <= timeline_start.0 {
+
+                                    cx.emit(AppEvent::SetClipStart(
+                                        self.track_id,
+                                        self.clip_id,
+                                        timeline_start,
+                                    ));
+
+                                    cx.emit(TimelineSelectionEvent::SetSelection(
+                                        self.track_id,
+                                        self.track_id,
+                                        timeline_start,
+                                        timeline_start + (self.clip_end - self.clip_start),
+                                    ));
+
+                                } 
+                                // else if start_time.0 + self.clip_end.0 + musical_delta.0 >= timeline_end.0 {
+                                //     println!("start_time: {:?}, clip_end: {:?}, musical_dela: {:?}, timeline_end: {:?}", start_time, self.clip_end, musical_delta, timeline_end);
+                                //     //cx.emit(TimelineViewEvent::SetEndTime(self.timeline_end));
+                                //     //cx.emit(TimelineViewEvent::SetStartTime(self.timeline_end - (self.end_time - self.start_time)));
+
+                                //     cx.emit(AppEvent::SetClipStart(
+                                //         self.track_id,
+                                //         self.clip_id,
+                                //         timeline_end  - (self.clip_end - self.clip_start),
+                                //     ));
+
+                                //     cx.emit(TimelineSelectionEvent::SetSelection(
+                                //         self.track_id,
+                                //         self.track_id,
+                                //         timeline_end  - (self.clip_end - self.clip_start),
+                                //         timeline_end,
+                                //     ));
+                                // } 
+                                else {
+                                    //cx.emit(TimelineViewEvent::SetStartTime(self.start_time + musical));
+                                    //cx.emit(TimelineViewEvent::SetEndTime(self.end_time + musical));
+
+                                    cx.emit(AppEvent::SetClipStart(
+                                        self.track_id,
+                                        self.clip_id,
+                                        start_time + musical_delta,
+                                    ));
+
+                                    cx.emit(TimelineSelectionEvent::SetSelection(
+                                        self.track_id,
+                                        self.track_id,
+                                        start_time + musical_delta,
+                                        end_time + musical_delta,
+                                    ));
+                                }
+
+
+                                
+
+                                
                             }
 
                             if resize_end {

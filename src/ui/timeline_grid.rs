@@ -54,7 +54,7 @@ impl View for TimelineGrid {
 
             canvas.scissor(bounds.x, bounds.y, bounds.w, bounds.h);
 
-            for i in (start_time.0.ceil() as usize)..(end_time.0.ceil() as usize) {
+            for i in (start_time.0.floor() as usize)..(end_time.0.ceil() as usize) {
                 let ratio = (i as f64 - start_time.0) / (end_time.0 - start_time.0);
                 let mut path = Path::new();
                 path.move_to(bounds.x + (ratio as f32 * timeline_width).floor(), bounds.y);

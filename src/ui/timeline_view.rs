@@ -27,7 +27,7 @@ pub fn timeline_view(cx: &mut Context) {
             // Create some internal slider data (not exposed to the user)
             TimelineViewState {
                 start_time: MusicalTime::new(0.into()),
-                end_time: MusicalTime::new(20.into()),
+                end_time: MusicalTime::new(15.into()),
                 timeline_start: MusicalTime::new(0.into()),
                 timeline_end: MusicalTime::new(30.into()),
                 width: 0.0,
@@ -205,8 +205,12 @@ impl TimelineViewState {
 
     // Converts delta cursor movement into musical time
     pub fn delta_to_musical(&self, cursorx: f32) -> MusicalTime {
-        let beats = self.start_time.0
-            + (cursorx / self.width) as f64 * (self.end_time.0 - self.start_time.0);
+        let beats = (cursorx / self.width) as f64 * (self.end_time.0 - self.start_time.0);
+        MusicalTime::new(beats.into())
+    }
+
+    pub fn delta_to_musical2(&self, cursorx: f32) -> MusicalTime {
+        let beats = (cursorx / self.width) as f64 * (self.timeline_end.0 - self.timeline_start.0);
         MusicalTime::new(beats.into())
     }
 }
@@ -237,13 +241,13 @@ impl Model for TimelineViewState {
 
                 TimelineViewEvent::SetStartTime(start_time) => {
                     if self.end_time - *start_time >= MusicalTime::new(0.2) {
-                        self.start_time = *start_time;
+                        self.start_time = MusicalTime::new(start_time.0.max(self.timeline_start.0));
                     }
                 }
 
                 TimelineViewEvent::SetEndTime(end_time) => {
                     if *end_time - self.start_time >= MusicalTime::new(0.2) {
-                        self.end_time = *end_time;
+                        self.end_time = MusicalTime::new(end_time.0.min(self.timeline_end.0));
                     }
                 }
 
@@ -285,8 +289,11 @@ pub struct ScrollBar {
     dragging: bool,
 
     // When clicked
+    timeline_start: MusicalTime,
+    timeline_end: MusicalTime,
     start_time: MusicalTime,
     end_time: MusicalTime,
+
     left_edge: f32,
 }
 
@@ -297,8 +304,11 @@ impl ScrollBar {
             drag_end: false,
             dragging: false,
 
+            timeline_start: MusicalTime::new(0.0),
+            timeline_end: MusicalTime::new(0.0),
             start_time: MusicalTime::new(0.0),
             end_time: MusicalTime::new(0.0),
+            
 
             left_edge: 0.0,
         }
@@ -328,8 +338,11 @@ impl View for ScrollBar {
                         cx.captured = cx.current;
 
                         if let Some(timeline_view_state) = cx.data::<TimelineViewState>() {
-                            self.start_time = timeline_view_state.timeline_start;
-                            self.end_time = timeline_view_state.timeline_end;
+                            self.timeline_start = timeline_view_state.timeline_start;
+                            self.timeline_end = timeline_view_state.timeline_end;
+                            self.start_time = timeline_view_state.start_time;
+                            self.end_time = timeline_view_state.end_time;
+                            println!("This: {:?}", self.start_time);
                         }
                     }
                 }
@@ -371,15 +384,28 @@ impl View for ScrollBar {
                             //let mut delta = (*x - timeline_posx) / timeline_width;
                             let delta = (*x - cx.mouse.left.pos_down.0) / timeline_width;
                             let start_time =
-                                MusicalTime::new(delta.into()) * (self.end_time - self.start_time);
-                            println!("Start Time: {:?}", self.start_time + start_time);
+                                MusicalTime::new(delta.into()) * (self.timeline_end - self.timeline_start);
+                            //println!("Start Time: {:?}", self.start_time + start_time);
+                            let musical = timeline_view_state.delta_to_musical2(*x - cx.mouse.left.pos_down.0);
+                            //println!("Start Time: {:?}", self.timeline_start);
+                            //println!("New Start: {:?}", musical);
+                            if self.start_time.0 + musical.0 <= self.timeline_start.0 {
+                                cx.emit(TimelineViewEvent::SetStartTime(self.timeline_start));
+                                cx.emit(TimelineViewEvent::SetEndTime(self.timeline_start + (self.end_time - self.start_time)));
+                            } else if self.end_time.0 + musical.0 >= self.timeline_end.0 {
+                                cx.emit(TimelineViewEvent::SetEndTime(self.timeline_end));
+                                cx.emit(TimelineViewEvent::SetStartTime(self.timeline_end - (self.end_time - self.start_time)));
+                            } else {
+                                cx.emit(TimelineViewEvent::SetStartTime(self.start_time + musical));
+                                cx.emit(TimelineViewEvent::SetEndTime(self.end_time + musical));
+                            }
                         }
 
                         if self.drag_end {
                             let mut delta = (*x - timeline_posx) / timeline_width;
                             delta = delta.clamp(0.0, 1.0);
                             let end_time =
-                                MusicalTime::new(delta.into()) * (self.end_time - self.start_time);
+                                MusicalTime::new(delta.into()) * (self.timeline_end - self.timeline_start);
                             cx.emit(TimelineViewEvent::SetEndTime(end_time));
                         }
 
@@ -387,7 +413,7 @@ impl View for ScrollBar {
                             let mut delta = (*x - timeline_posx) / timeline_width;
                             delta = delta.clamp(0.0, 1.0);
                             let start_time =
-                                MusicalTime::new(delta.into()) * (self.end_time - self.start_time);
+                                MusicalTime::new(delta.into()) * (self.timeline_end - self.timeline_start);
                             cx.emit(TimelineViewEvent::SetStartTime(start_time));
                         }
                     }
