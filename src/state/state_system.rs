@@ -1,9 +1,11 @@
 use std::collections::VecDeque;
+use std::sync::{Mutex, Arc};
 
 use cpal::Stream;
 use rusty_daw_audio_graph::{GraphStateRef, NodeRef, PortType};
 use rusty_daw_core::{MusicalTime, SampleRate};
 use vizia::{Lens, Model};
+use vst::host::{Host, PluginLoader, PluginInstance};
 
 use crate::backend::timeline::{
     AudioClipFades, AudioClipState, LoopState, TimelineTrackHandle, TimelineTrackNode,
@@ -23,6 +25,11 @@ pub struct Project {
     pub timeline_track_handles: Vec<(NodeRef, TimelineTrackHandle)>,
 }
 
+#[derive(Default)]
+struct VstHost;
+
+impl Host for VstHost {}
+
 /// This struct is responsible for managing and mutating state of the entire application.
 /// All mutation of any backend, UI, or save state must happen through this struct.
 /// It is the responsibility of this struct to make sure all 3 of these states are synced
@@ -36,15 +43,34 @@ pub struct StateSystem {
 
     #[lens(ignore)]
     next_empty_track_num: usize,
+
+    #[lens(ignore)]
+    vst_host: Arc<Mutex<VstHost>>,
+
+    #[lens(ignore)]
+    pub instance: PluginInstance,
+
+
 }
 
 impl StateSystem {
     pub fn new() -> Self {
+
+        // TODO - Make this configurable
+        let vst_host =  Arc::new(Mutex::new(VstHost));
+        let mut loader = PluginLoader::load(std::path::Path::new("./assets/test_files/plugins/test2.dll"), vst_host.clone()).unwrap();
+
+        let instance = loader.instance().unwrap();
+
         Self {
             project: None,
             ui_state: UiState::default(),
             undo_stack: VecDeque::new(),
             next_empty_track_num: 1,
+
+            vst_host,
+
+            instance,
         }
     }
 
@@ -521,12 +547,21 @@ pub enum AppEvent {
     // TODO - create types for track id and clip id
     SetClipStart(usize, usize, MusicalTime),
     SetClipEnd(usize, usize, MusicalTime),
+
+    // Plugin
+    OpenPluginTest,
 }
 
 impl Model for StateSystem {
     fn event(&mut self, cx: &mut vizia::Context, event: &mut vizia::Event) {
         if let Some(app_event) = event.message.downcast() {
             match app_event {
+
+                // Plugins
+                AppEvent::OpenPluginTest => {
+                    
+                } 
+
                 AppEvent::Sync => {
                     self.sync_playhead();
                 }

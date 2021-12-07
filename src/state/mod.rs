@@ -5,3 +5,7 @@ pub mod ui_state;
 
 pub use project_save_state::ProjectSaveState;
 pub use state_system::{AppEvent, Project, StateSystem};
+
+// TODO - Move this somewhere sensible
+pub mod host;
+pub use host::*;

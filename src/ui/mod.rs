@@ -1,5 +1,7 @@
 use image::GenericImageView;
+use raw_window_handle::{HasRawWindowHandle, RawWindowHandle};
 use vizia::*;
+use vst::plugin::Plugin;
 
 use crate::state::{AppEvent, ProjectSaveState, StateSystem};
 
@@ -77,9 +79,60 @@ pub fn run() {
         let project_save_state = Box::new(ProjectSaveState::test());
         let mut state_system = StateSystem::new();
         state_system.load_project(&project_save_state);
+        
+        state_system.build_root(cx);
 
-        state_system.build(cx);
 
+        // RawWindow::new(cx, WindowDescription::new().with_inner_size(1125, 375), |cx, window| {
+        //     if let Some(state_system) = cx.data_mut::<StateSystem>() {
+        //         if let Some(mut editor) = state_system.instance.get_editor() {
+        //             if let Some(win) = &window.window {
+        //                 let size = editor.size();
+
+
+                        
+        //                 let handle = win.raw_window_handle();
+
+                        
+
+        //                 match handle {
+
+        //                     #[cfg(target_os = "linux")]
+        //                     RawWindowHandle::Xcb(w) => {
+        //                         println!("Xcb");
+        //                         editor.open(w.window as *mut _);
+        //                     }
+        //                     #[cfg(target_os = "linux")]
+        //                     RawWindowHandle::Xlib(w) => {
+        //                         println!("Xlib");
+        //                         editor.open(w.window as u32 as *mut _);
+        //                     }
+                    
+        //                     #[cfg(target_os = "linux")]
+        //                     RawWindowHandle::Wayland(w) => println!("Window handle: {:?}", w),
+                    
+        //                     #[cfg(target_os = "windows")]
+        //                     RawWindowHandle::Win32(hwnd)=>{
+        //                       editor.open(hwnd.hwnd as *mut _);
+        //                     },
+                    
+        //                     #[cfg(target_os = "macos")]
+        //                     RawWindowHandle::MacOS(w) => {
+        //                         editor.open(w.window as u32 as *mut _);
+        //                     }
+                    
+        //                     _ => {
+        //                         println!("Unsupported platform");
+        //                         //return;
+        //                     }
+                    
+                    
+        //                 }
+        //             }
+        //         }
+        //     }
+        // });
+        
         cx.add_theme(STYLE);
 
         Keymap::new(cx, |cx| {
