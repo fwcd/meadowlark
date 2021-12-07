@@ -164,6 +164,8 @@ impl StateSystem {
             }
         };
 
+        self.ui_state.timeline_transport.seek_to = loop_start;
+
         if let Some(project) = &mut self.project {
             let (transport, _) = project
                 .backend_core_handle
@@ -196,6 +198,8 @@ impl StateSystem {
                 new_loop_start
             }
         };
+
+        self.ui_state.timeline_transport.seek_to = new_loop_start;
 
         if let Some(project) = &mut self.project {
             let (transport, _) = project
@@ -254,14 +258,27 @@ impl StateSystem {
         }
     }
 
+    pub fn timeline_transport_seek_to(&mut self, seek: MusicalTime) {
+        if let Some(project) = &mut self.project {
+            self.ui_state.timeline_transport.seek_to = seek;
+
+            let (transport, transport_state) = project
+                .backend_core_handle
+                .timeline_transport_mut(&mut project.save_state.backend_core);
+            transport.seek_to(self.ui_state.timeline_transport.seek_to, transport_state);
+            
+        }
+    }
+
     pub fn timeline_transport_play(&mut self) {
         if let Some(project) = &mut self.project {
             if !self.ui_state.timeline_transport.is_playing {
                 self.ui_state.timeline_transport.is_playing = true;
 
-                let (transport, _) = project
+                let (transport, transport_state) = project
                     .backend_core_handle
                     .timeline_transport_mut(&mut project.save_state.backend_core);
+                transport.seek_to(self.ui_state.timeline_transport.seek_to, transport_state);
                 transport.set_playing(true);
             }
         }
@@ -292,9 +309,10 @@ impl StateSystem {
                 transport.set_playing(false);
             } else {
                 self.ui_state.timeline_transport.is_playing = true;
-                let (transport, _) = project
+                let (transport, transport_state) = project
                     .backend_core_handle
                     .timeline_transport_mut(&mut project.save_state.backend_core);
+                transport.seek_to(self.ui_state.timeline_transport.seek_to, transport_state);
                 transport.set_playing(true);
             }
         }
@@ -489,6 +507,7 @@ pub enum AppEvent {
     Pause,
     PlayPause,
     Stop,
+    SeekTo(MusicalTime),
 
     // Loop Controls
     SetLoopStart(MusicalTime),
@@ -545,6 +564,10 @@ impl Model for StateSystem {
                 AppEvent::Stop => {
                     self.timeline_transport_stop();
                     self.sync_playhead();
+                }
+
+                AppEvent::SeekTo(time) => {
+                    self.timeline_transport_seek_to(*time);
                 }
 
                 // LOOP

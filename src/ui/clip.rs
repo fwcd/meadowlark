@@ -94,6 +94,7 @@ impl Clip {
                         cx.emit(TimelineSelectionEvent::SetSelection(
                             track_id, track_id, clip_start, clip_end,
                         ));
+                        cx.emit(AppEvent::SeekTo(clip_start));
                     });
                 Element::new(cx).background_color(Color::rgba(235, 136, 92, 15));
             })
