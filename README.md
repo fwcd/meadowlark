@@ -22,19 +22,21 @@ Meadowlark is a (currently incomplete) project that aims to be a FREE and open-s
 
 Before contributing or participating in discussions with the community, you should familiarize yourself with our [Code of Conduct].
 
+* The kanban-style [project-board] for this project.
+
 * Come join us on our [Discord Server]! *(music artists, designers, developers, and general users welcome!)*
 
 * We are also active in the [Rust Audio Discord Server] where we develop some of the generic backend modules for the [RustyDAW] project. Please keep discussions there about the [RustyDAW] project and not about Meadowlark specifically. *(developers only please)*
 
-* Developers may take a look at the current [Design Document]. Note we are currently not accepting code contributions to the core project until things are more fleshed out and less "experimental". However, we *will* be accepting contributions to any DSP since that can easily be delegated and developed in parallel. Take a look at the [DSP Design Document] if you are interested.
+* Developers may take a look at the current [MVP Design Document]. Note we are currently not accepting code contributions to the core project until things are more fleshed out and less "experimental". However, we *will* be accepting contributions to any DSP since that can easily be delegated and developed in parallel. Take a look at the [DSP Design Document] if you are interested.
 
 * Meadowlark is currently being used as a testbed for the upcoming [Tuix] GUI library, and we are working close with the developer for the benefit of both projects. If a GUI library written in Rust interests you, please check them out and give them your support!
 
-[Design Document]: ./DESIGN_DOC.md
+[MVP Design Document]: ./MVP_DESIGN_DOC.md
 [DSP Design Document]: ./DSP_DESIGN_DOC.md
 [Discord Server]: https://discord.gg/2W3Xvc8wy4
 [Rust Audio Discord Server]: https://discord.gg/Qs2Zwtf9Gf
 [RustyDAW]: https://github.com/RustyDAW
 [Rust]: https://www.rust-lang.org/
 [Code of Conduct]: ./CODE_OF_CONDUCT.md
-[Tuix]: https://github.com/geom3trik/tuix
+[project-board]: https://github.com/MeadowlarkDAW/project-board
