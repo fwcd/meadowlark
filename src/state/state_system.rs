@@ -220,7 +220,7 @@ impl StateSystem {
             if let Some(clip_state) = track_state.audio_clips.get_mut(clip_id) {
                 clip_state.timeline_start = timeline_start;
             }
-        }
+        };
 
         if let Some(project) = &mut self.project {
             if let Some((_, track)) = project.timeline_track_handles.get_mut(track_id) {
@@ -229,6 +229,29 @@ impl StateSystem {
                     track.audio_clip_mut(clip_id, timeline_tracks_state.get_mut(track_id).unwrap())
                 {
                     clip_handle.set_timeline_start(timeline_start, tempo_map, clip_state);
+                   
+                }
+            }
+        }
+    }
+
+    pub fn trim_clip_start(&mut self, track_id: usize, clip_id: usize, timeline_start: MusicalTime) {
+        if let Some(track_state) = self.ui_state.timeline_tracks.get_mut(track_id) {
+            if let Some(clip_state) = track_state.audio_clips.get_mut(clip_id) {
+                clip_state.timeline_start = timeline_start;
+            }
+        };
+
+        if let Some(project) = &mut self.project {
+            if let Some((_, track)) = project.timeline_track_handles.get_mut(track_id) {
+                let (tempo_map, timeline_tracks_state) = project.save_state.timeline_tracks_mut();
+                if let Some((clip_handle, clip_state)) =
+                    track.audio_clip_mut(clip_id, timeline_tracks_state.get_mut(track_id).unwrap())
+                {
+                    let offset = (timeline_start - clip_state.timeline_start).to_seconds(tempo_map.bpm());
+                    clip_handle.set_clip_start_offset(clip_state.clip_start_offset + offset, tempo_map, clip_state);
+                    clip_handle.set_timeline_start(timeline_start, tempo_map, clip_state);
+                   
                 }
             }
         }
@@ -521,6 +544,8 @@ pub enum AppEvent {
     // TODO - create types for track id and clip id
     SetClipStart(usize, usize, MusicalTime),
     SetClipEnd(usize, usize, MusicalTime),
+    TrimClipStart(usize, usize, MusicalTime),
+    TrimClipEnd(usize, usize, MusicalTime),
 }
 
 impl Model for StateSystem {
@@ -600,6 +625,16 @@ impl Model for StateSystem {
                 }
 
                 AppEvent::SetClipEnd(track_id, clip_id, timeline_start) => {
+                    let timeline_start = MusicalTime::new(timeline_start.0.max(0.0));
+                    self.set_clip_end(*track_id, *clip_id, timeline_start);
+                }
+
+                AppEvent::TrimClipStart(track_id, clip_id, timeline_start) => {
+                    let timeline_start = MusicalTime::new(timeline_start.0.max(0.0));
+                    self.trim_clip_start(*track_id, *clip_id, timeline_start);
+                }
+
+                AppEvent::TrimClipEnd(track_id, clip_id, timeline_start) => {
                     let timeline_start = MusicalTime::new(timeline_start.0.max(0.0));
                     self.set_clip_end(*track_id, *clip_id, timeline_start);
                 }

@@ -231,7 +231,7 @@ impl View for Clip {
                             }
 
                             if resize_end {
-                                cx.emit(AppEvent::SetClipEnd(
+                                cx.emit(AppEvent::TrimClipEnd(
                                     self.track_id,
                                     self.clip_id,
                                     musical_pos,
@@ -245,7 +245,7 @@ impl View for Clip {
                             }
 
                             if resize_start {
-                                cx.emit(AppEvent::SetClipStart(
+                                cx.emit(AppEvent::TrimClipStart(
                                     self.track_id,
                                     self.clip_id,
                                     musical_pos,
@@ -407,6 +407,7 @@ impl View for Clip {
                     {
                         let sample_duration =
                             clip_state.duration.to_nearest_sample_ceil(tempo_map.sample_rate);
+                        let offset = clip_state.clip_start_offset.to_nearest_sample_ceil(tempo_map.sample_rate);
 
                         let clip_resource = clip.resource();
 
@@ -434,8 +435,8 @@ impl View for Clip {
                                     path.move_to(bounds.x, clipy + cliph / 2.0);
                                     for (x, min, max) in clip_data.waveform.query(
                                         samples,
-                                        clip_resource.original_offset.0 as f64,
-                                        sample_duration.0 as f64,
+                                        (clip_resource.original_offset.0 + offset.0) as f64,
+                                        (sample_duration.0) as f64,
                                         bounds.w as usize + 1,
                                     ) {
                                         //println!("x {} min: {} max: {}", x, min, max);
