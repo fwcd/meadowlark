@@ -80,6 +80,7 @@ impl Clip {
                         start_time: clip_start,
                         end_time: clip_end,
                         waveform: Rc::new(waveform),
+                        should_snap: true,
                     }
                     .build(cx);
                 }
@@ -153,19 +154,23 @@ impl View for Clip {
                                 / (timeline_view_state.end_time - timeline_view_state.start_time).0
                                     as f32;
 
+                            
+
                             // Snapping
-                            if pixels_per_beat >= 100.0 && pixels_per_beat < 400.0 {
-                                musical_delta =
-                                    MusicalTime::new((musical_delta.0 * 4.0).round() / 4.0);
-                                musical_pos = MusicalTime::new((musical_pos.0 * 4.0).round() / 4.0);
-                            } else if pixels_per_beat >= 400.0 {
-                                musical_delta =
-                                    MusicalTime::new((musical_delta.0 * 16.0).round() / 16.0);
-                                musical_pos =
-                                    MusicalTime::new((musical_pos.0 * 16.0).round() / 16.0);
-                            } else {
-                                musical_delta = MusicalTime::new(musical_delta.0.round());
-                                musical_pos = MusicalTime::new(musical_pos.0.round());
+                            if cx.data::<ClipData>().unwrap().should_snap {
+                                if pixels_per_beat >= 100.0 && pixels_per_beat < 400.0 {
+                                    musical_delta =
+                                        MusicalTime::new((musical_delta.0 * 4.0).round() / 4.0);
+                                    musical_pos = MusicalTime::new((musical_pos.0 * 4.0).round() / 4.0);
+                                } else if pixels_per_beat >= 400.0 {
+                                    musical_delta =
+                                        MusicalTime::new((musical_delta.0 * 16.0).round() / 16.0);
+                                    musical_pos =
+                                        MusicalTime::new((musical_pos.0 * 16.0).round() / 16.0);
+                                } else {
+                                    musical_delta = MusicalTime::new(musical_delta.0.round());
+                                    musical_pos = MusicalTime::new(musical_pos.0.round());
+                                }
                             }
 
 
@@ -351,6 +356,7 @@ impl View for Clip {
                         }
                     }
 
+                    // TODO
                     Code::Delete => {
                         if let Some(timeline_selection) = cx.data::<TimelineSelectionUiState>() {
                             cx.emit(AppEvent::RemoveSelection(
@@ -367,14 +373,27 @@ impl View for Clip {
                         cx.emit(TimelineSelectionEvent::SelectNone);
                     }
 
+                    Code::ControlLeft | Code::ControlRight => {
+                        cx.emit(ClipEvent::Snap(false));
+                    }
+
                     _ => {}
                 },
+
+                WindowEvent::KeyUp(code, _) => match code {
+                    Code::ControlLeft => {
+                        cx.emit(ClipEvent::Snap(true));
+                    }
+
+                    _=> {}
+                }
 
                 _ => {}
             }
         }
     }
-
+ 
+    // Custom drawing for clip waveforms
     fn draw(&self, cx: &Context, canvas: &mut Canvas) {
         let bounds = cx.cache.get_bounds(cx.current);
         let header_height = 20.0;
@@ -405,9 +424,14 @@ impl View for Clip {
                     if let Some((clip, clip_state)) = track
                         .audio_clip(self.clip_id, timeline_tracks_state.get(self.track_id).unwrap())
                     {
-                        let sample_duration =
-                            clip_state.duration.to_nearest_sample_ceil(tempo_map.sample_rate);
-                        let offset = clip_state.clip_start_offset.to_nearest_sample_ceil(tempo_map.sample_rate);
+                        let (duration_time, duration_frac)  =
+                            clip_state.duration.to_sub_sample(tempo_map.sample_rate);
+                        let sample_duration = duration_time.0 as f64 + duration_frac;
+
+                        println!("Sample Duration: {} {:?} {}", sample_duration, clip_state.duration, bounds.w);
+                        
+                        let (offset_time, offset_frac) = clip_state.clip_start_offset.to_sub_sample(tempo_map.sample_rate);
+                        let sample_offset = offset_time.0 as f64 + offset_frac;
 
                         let clip_resource = clip.resource();
 
@@ -435,9 +459,9 @@ impl View for Clip {
                                     path.move_to(bounds.x, clipy + cliph / 2.0);
                                     for (x, min, max) in clip_data.waveform.query(
                                         samples,
-                                        (clip_resource.original_offset.0 + offset.0) as f64,
-                                        (sample_duration.0) as f64,
-                                        bounds.w as usize + 1,
+                                        clip_resource.original_offset.0 as f64 + sample_offset,
+                                        sample_duration as f64,
+                                        bounds.w as usize,
                                     ) {
                                         //println!("x {} min: {} max: {}", x, min, max);
                                         path.line_to(
@@ -479,6 +503,9 @@ pub struct ClipData {
     end_time: MusicalTime,
     #[data(ignore)]
     waveform: Rc<Waveform>,
+
+    #[data(ignore)]
+    should_snap: bool,
 }
 
 #[derive(Debug)]
@@ -488,6 +515,7 @@ pub enum ClipEvent {
     SetResizeEnd(bool),
     SetStartTime(MusicalTime),
     SetEndTime(MusicalTime),
+    Snap(bool),
 }
 
 impl Model for ClipData {
@@ -512,6 +540,10 @@ impl Model for ClipData {
 
                 ClipEvent::SetEndTime(end_time) => {
                     self.end_time = *end_time;
+                }
+
+                ClipEvent::Snap(flag) => {
+                    self.should_snap = *flag;
                 }
             }
         }
