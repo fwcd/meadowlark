@@ -126,15 +126,15 @@ impl TrackControls {
 
                                     Label::new(cx, &track_data.name);
                                     // Record Button
-                                    Button::new(cx, |_| {}, |_| {})
+                                    Button::new(cx, |_| {}, |cx| Label::new(cx, "R"))
                                         .width(Pixels(30.0))
                                         .height(Pixels(30.0));
                                     // Solo Button
-                                    Button::new(cx, |_| {}, |_| {})
+                                    Button::new(cx, |_| {}, |cx| Label::new(cx, "M"))
                                         .width(Pixels(30.0))
                                         .height(Pixels(30.0));
                                     // Mute Button
-                                    Button::new(cx, |_| {}, |_| {})
+                                    Button::new(cx, |_| {}, |cx| Label::new(cx, "S"))
                                         .width(Pixels(30.0))
                                         .height(Pixels(30.0));
                                 });
