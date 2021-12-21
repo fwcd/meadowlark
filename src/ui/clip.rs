@@ -425,7 +425,7 @@ impl View for Clip {
                         let (duration_time, duration_frac) =
                             clip_state.duration.to_sub_sample(tempo_map.sample_rate);
                         let sample_duration = duration_time.0 as f64 + duration_frac;
-
+                        
                         println!(
                             "Sample Duration: {} {:?} {}",
                             sample_duration, clip_state.duration, bounds.w
@@ -433,6 +433,7 @@ impl View for Clip {
 
                         let (offset_time, offset_frac) =
                             clip_state.clip_start_offset.to_sub_sample(tempo_map.sample_rate);
+                        
                         let sample_offset = offset_time.0 as f64 + offset_frac;
                         */
 
