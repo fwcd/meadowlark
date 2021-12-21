@@ -1,4 +1,4 @@
-use rusty_daw_core::{MusicalTime, Seconds};
+use rusty_daw_core::{MusicalTime, Seconds, SuperFrames};
 
 use crate::backend::timeline::{
     AudioClipState, LoopState, TempoMap, TimelineTrackState, TimelineTransportState,
@@ -32,10 +32,10 @@ impl ProjectSaveState {
 
     pub fn test() -> Self {
         let timeline_transport = TimelineTransportState {
-            seek_to: MusicalTime(0.0),
+            seek_to: MusicalTime::default(),
             loop_state: LoopState::Active {
-                loop_start: MusicalTime::new(0.0),
-                loop_end: MusicalTime::new(12.0),
+                loop_start: MusicalTime::new(0, 0),
+                loop_end: MusicalTime::new(12, 0),
             },
         };
 
@@ -48,9 +48,10 @@ impl ProjectSaveState {
             audio_clips: vec![AudioClipState {
                 name: String::from("Kick"),
                 pcm_path: "./assets/test_files/drums/kick.wav".into(),
-                timeline_start: MusicalTime::new(0.0),
-                duration: Seconds::new(0.5),
-                clip_start_offset: Seconds::new(0.0),
+                timeline_start: MusicalTime::new(0, 0),
+                duration: Seconds::new(0.5).to_nearest_super_frame_round(),
+                clip_start_offset: SuperFrames::new(0),
+                clip_start_offset_is_negative: false,
                 clip_gain_db: -3.0,
                 fades: Default::default(),
             }],
@@ -61,9 +62,10 @@ impl ProjectSaveState {
             audio_clips: vec![AudioClipState {
                 name: String::from("Snare"),
                 pcm_path: "./assets/test_files/drums/snare.wav".into(),
-                timeline_start: MusicalTime::new(1.0),
-                duration: Seconds::new(0.5),
-                clip_start_offset: Seconds::new(0.0),
+                timeline_start: MusicalTime::new(1, 0),
+                duration: Seconds::new(0.5).to_nearest_super_frame_round(),
+                clip_start_offset: SuperFrames::new(0),
+                clip_start_offset_is_negative: false,
                 clip_gain_db: -3.0,
                 fades: Default::default(),
             }],

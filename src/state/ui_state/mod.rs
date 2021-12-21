@@ -1,4 +1,4 @@
-use rusty_daw_core::{MusicalTime, SampleRate, Seconds};
+use rusty_daw_core::{MusicalTime, SampleRate, SuperFrames};
 use std::path::PathBuf;
 use vizia::{Context, Data, Event, Lens, Model};
 
@@ -98,8 +98,8 @@ impl Model for TimelineSelectionUiState {
                 TimelineSelectionEvent::SelectNone => {
                     self.track_start = 0;
                     self.track_end = 0;
-                    self.select_start = MusicalTime::new(0.0);
-                    self.select_end = MusicalTime::new(0.0);
+                    self.select_start = MusicalTime::new(0, 0);
+                    self.select_end = MusicalTime::new(0, 0);
                 }
             }
         }
@@ -129,33 +129,57 @@ impl Default for TimelineTransportUiState {
     fn default() -> Self {
         Self {
             is_playing: false,
-            seek_to: MusicalTime::new(0.into()),
-            loop_state: LoopUiState::Inactive,
-            playhead: MusicalTime::new(0.into()),
+            seek_to: MusicalTime::new(0, 0),
+            loop_state: LoopUiState {
+                status: LoopStatusUiState::Inactive,
+                loop_start: MusicalTime::new(0, 0),
+                loop_end: MusicalTime::new(8, 0),
+            },
+            playhead: MusicalTime::new(0, 0),
         }
     }
 }
 
 /// The status of looping on this transport.
 #[derive(Debug, Clone, Copy, PartialEq, Data)]
-pub enum LoopUiState {
+pub enum LoopStatusUiState {
     /// The transport is not currently looping.
     Inactive,
     /// The transport is currently looping.
-    Active {
-        /// The start of the loop (inclusive).
-        loop_start: MusicalTime,
-        /// The end of the loop (exclusive).
-        loop_end: MusicalTime,
-    },
+    Active,
+}
+
+/// The status of looping on this transport.
+#[derive(Debug, Clone, Copy, PartialEq, Data)]
+pub struct LoopUiState {
+    pub status: LoopStatusUiState,
+    /// The start of the loop (inclusive).
+    pub loop_start: MusicalTime,
+    /// The end of the loop (exclusive).
+    pub loop_end: MusicalTime,
 }
 
 impl From<LoopState> for LoopUiState {
     fn from(l: LoopState) -> Self {
         match l {
-            LoopState::Inactive => LoopUiState::Inactive,
+            LoopState::Inactive => LoopUiState {
+                status: LoopStatusUiState::Inactive,
+                loop_start: MusicalTime::new(0, 0),
+                loop_end: MusicalTime::new(8, 0),
+            },
             LoopState::Active { loop_start, loop_end } => {
-                LoopUiState::Active { loop_start, loop_end }
+                LoopUiState { status: LoopStatusUiState::Active, loop_start, loop_end }
+            }
+        }
+    }
+}
+
+impl LoopUiState {
+    pub fn to_backend_state(&self) -> LoopState {
+        match self.status {
+            LoopStatusUiState::Inactive => LoopState::Inactive,
+            LoopStatusUiState::Active => {
+                LoopState::Active { loop_start: self.loop_start, loop_end: self.loop_end }
             }
         }
     }
@@ -189,10 +213,12 @@ pub struct AudioClipUiState {
     pub timeline_start: MusicalTime,
 
     /// The duration of the clip on the timeline.
-    pub duration: Seconds,
+    pub duration: SuperFrames,
 
     /// The offset in the pcm resource where the "start" of the clip should start playing from.
-    pub clip_start_offset: Seconds,
+    pub clip_start_offset: SuperFrames,
+
+    pub clip_start_offset_is_negative: bool,
 
     /// The gain of the audio clip in decibels.
     pub clip_gain_db: f32,
@@ -211,6 +237,7 @@ impl From<&AudioClipState> for AudioClipUiState {
             timeline_start: a.timeline_start,
             duration: a.duration,
             clip_start_offset: a.clip_start_offset,
+            clip_start_offset_is_negative: a.clip_start_offset_is_negative,
             clip_gain_db: a.clip_gain_db,
             fades: AudioClipFadesUiState {
                 start_fade_duration: a.fades.start_fade_duration,
@@ -222,8 +249,8 @@ impl From<&AudioClipState> for AudioClipUiState {
 
 #[derive(Debug, Clone, Copy, Data, Lens)]
 pub struct AudioClipFadesUiState {
-    pub start_fade_duration: Seconds,
-    pub end_fade_duration: Seconds,
+    pub start_fade_duration: SuperFrames,
+    pub end_fade_duration: SuperFrames,
 }
 
 impl Model for AudioClipFadesUiState {}

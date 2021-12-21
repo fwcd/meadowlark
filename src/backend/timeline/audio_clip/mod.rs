@@ -3,13 +3,14 @@ use basedrop::{Handle, Shared, SharedCell};
 use rusty_daw_audio_graph::node::{DB_GRADIENT, SMOOTH_SECS};
 use rusty_daw_core::block_buffer::StereoBlockBuffer;
 use rusty_daw_core::{
-    MusicalTime, ParamF32, ParamF32Handle, SampleRate, SampleTime, Seconds, Unit,
+    Frames, MusicalTime, ParamF32, ParamF32UiHandle, ProcFrames, SampleRate, Seconds, SuperFrames,
+    Unit,
 };
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
 use crate::backend::resource_loader::{AnyPcm, PcmLoadError, ResourceLoader};
-use crate::backend::{ResourceCache, MAX_BLOCKSIZE};
+use crate::backend::ResourceCache;
 
 use super::{AudioClipState, TempoMap};
 
@@ -24,23 +25,24 @@ pub static AUDIO_CLIP_GAIN_MAX_DB: f32 = 40.0;
 
 #[derive(Debug, Clone, Copy)]
 pub struct AudioClipFades {
-    pub start_fade_duration: Seconds,
-    pub end_fade_duration: Seconds,
+    pub start_fade_duration: SuperFrames,
+    pub end_fade_duration: SuperFrames,
 }
 
 impl AudioClipFades {
-    pub const DEFAULT_FADE_DURATION: Seconds = Seconds(10.0 / 1_000.0);
+    pub const DEFAULT_FADE_DURATION: SuperFrames =
+        Seconds(10.0 / 1_000.0).to_nearest_super_frame_round();
 
     pub fn no_fade() -> Self {
-        Self { start_fade_duration: Seconds(0.0), end_fade_duration: Seconds(0.0) }
+        Self { start_fade_duration: SuperFrames(0), end_fade_duration: SuperFrames(0) }
     }
 
-    pub fn set_start_fade_duration(&mut self, duration: Seconds) {
-        self.start_fade_duration = Seconds(duration.0.min(0.0));
+    pub fn set_start_fade_duration(&mut self, duration: SuperFrames) {
+        self.start_fade_duration = duration;
     }
 
-    pub fn set_end_fade_duration(&mut self, duration: Seconds) {
-        self.end_fade_duration = Seconds(duration.0.min(0.0));
+    pub fn set_end_fade_duration(&mut self, duration: SuperFrames) {
+        self.end_fade_duration = duration;
     }
 
     pub fn set_default_start_fade(&mut self) {
@@ -51,34 +53,38 @@ impl AudioClipFades {
         self.end_fade_duration = Self::DEFAULT_FADE_DURATION;
     }
 
-    fn to_proc_info(
+    fn to_proc_state(
         &self,
         sample_rate: SampleRate,
-        timeline_start: SampleTime,
-        timeline_end: SampleTime,
-    ) -> AudioClipFadesProcInfo {
-        let start_fade_duration = Seconds(self.start_fade_duration.0.min(0.0));
-        let end_fade_duration = Seconds(self.end_fade_duration.0.min(0.0));
+        timeline_start: Frames,
+        timeline_end: Frames,
+    ) -> AudioClipFadesProcState {
+        let start_fade_duration = self.start_fade_duration.to_nearest_frame_round(sample_rate);
+        let mut end_fade_duration = self.end_fade_duration.to_nearest_frame_round(sample_rate);
 
-        let start_fade_duration =
-            start_fade_duration.to_nearest_sample_round(sample_rate).0 as usize;
-        let end_fade_duration = end_fade_duration.to_nearest_sample_round(sample_rate).0 as usize;
+        let end_fade_timeline_start = if timeline_end >= end_fade_duration {
+            timeline_end - end_fade_duration
+        } else {
+            // Unlikely situation to happen, but still possible so avoid wrap-around bugs.
+            end_fade_duration = timeline_end;
+            Frames(0)
+        };
 
         let start_fade_delta =
-            if start_fade_duration > 0 { 1.0 / start_fade_duration as f32 } else { 0.0 };
+            if start_fade_duration.0 > 0 { 1.0 / start_fade_duration.0 as f32 } else { 0.0 };
 
         let end_fade_delta =
-            if end_fade_duration > 0 { 1.0 / end_fade_duration as f32 } else { 0.0 };
+            if end_fade_duration.0 > 0 { 1.0 / end_fade_duration.0 as f32 } else { 0.0 };
 
-        AudioClipFadesProcInfo {
+        AudioClipFadesProcState {
             start_fade_duration,
             end_fade_duration,
 
             start_fade_delta,
             end_fade_delta,
 
-            start_fade_timeline_end: timeline_start + SampleTime::from_usize(start_fade_duration),
-            end_fade_timeline_start: timeline_end - SampleTime::from_usize(end_fade_duration),
+            start_fade_timeline_end: timeline_start + start_fade_duration,
+            end_fade_timeline_start,
         }
     }
 }
@@ -93,21 +99,21 @@ impl Default for AudioClipFades {
 }
 
 #[derive(Clone)]
-struct AudioClipFadesProcInfo {
-    start_fade_duration: usize,
-    end_fade_duration: usize,
+struct AudioClipFadesProcState {
+    start_fade_duration: Frames,
+    end_fade_duration: Frames,
 
     start_fade_delta: f32,
     end_fade_delta: f32,
 
-    start_fade_timeline_end: SampleTime,
-    end_fade_timeline_start: SampleTime,
+    start_fade_timeline_end: Frames,
+    end_fade_timeline_start: Frames,
 }
 
 pub struct AudioClipHandle {
-    clip_gain_db: ParamF32Handle,
+    clip_gain_db: ParamF32UiHandle,
 
-    info: Shared<SharedCell<AudioClipProcInfo>>,
+    info: Shared<SharedCell<AudioClipProcState>>,
     coll_handle: Handle,
 }
 
@@ -139,12 +145,12 @@ impl AudioClipHandle {
     ) {
         state.timeline_start = timeline_start;
 
-        let mut new_info = AudioClipProcInfo::clone(&self.info.get());
-        new_info.timeline_start = tempo_map.musical_to_nearest_sample_round(state.timeline_start);
-        new_info.timeline_end = tempo_map.seconds_to_nearest_sample_round(
-            tempo_map.musical_to_seconds(state.timeline_start) + state.duration,
-        );
-        new_info.fades = state.fades.to_proc_info(
+        let mut new_info = AudioClipProcState::clone(&self.info.get());
+        new_info.timeline_start = tempo_map.musical_to_nearest_frame_round(state.timeline_start);
+        new_info.timeline_end =
+            (tempo_map.musical_to_nearest_super_frame_round(state.timeline_start) + state.duration)
+                .to_nearest_frame_round(tempo_map.sample_rate);
+        new_info.fades = state.fades.to_proc_state(
             tempo_map.sample_rate,
             new_info.timeline_start,
             new_info.timeline_end,
@@ -156,17 +162,17 @@ impl AudioClipHandle {
     /// Set the duration of the clip on the timeline.
     pub fn set_duration(
         &mut self,
-        duration: Seconds,
+        duration: SuperFrames,
         tempo_map: &TempoMap,
         state: &mut AudioClipState,
     ) {
         state.duration = duration;
 
-        let mut new_info = AudioClipProcInfo::clone(&self.info.get());
-        new_info.timeline_end = tempo_map.seconds_to_nearest_sample_round(
-            tempo_map.musical_to_seconds(state.timeline_start) + state.duration,
-        );
-        new_info.fades = state.fades.to_proc_info(
+        let mut new_info = AudioClipProcState::clone(&self.info.get());
+        new_info.timeline_end =
+            (tempo_map.musical_to_nearest_super_frame_round(state.timeline_start) + state.duration)
+                .to_nearest_frame_round(tempo_map.sample_rate);
+        new_info.fades = state.fades.to_proc_state(
             tempo_map.sample_rate,
             new_info.timeline_start,
             new_info.timeline_end,
@@ -178,15 +184,20 @@ impl AudioClipHandle {
     /// Set the offset where the clip should start playing from.
     pub fn set_clip_start_offset(
         &mut self,
-        clip_start_offset: Seconds,
+        clip_start_offset: SuperFrames,
+        clip_start_offset_is_negative: bool,
         tempo_map: &TempoMap,
         state: &mut AudioClipState,
     ) {
         state.clip_start_offset = clip_start_offset;
+        state.clip_start_offset_is_negative = clip_start_offset_is_negative;
 
-        let mut new_info = AudioClipProcInfo::clone(&self.info.get());
+        let mut new_info = AudioClipProcState::clone(&self.info.get());
         new_info.clip_start_offset =
-            clip_start_offset.to_nearest_sample_round(tempo_map.sample_rate);
+            clip_start_offset.to_nearest_frame_round(tempo_map.sample_rate).0 as i64;
+        if clip_start_offset_is_negative {
+            new_info.clip_start_offset = -new_info.clip_start_offset;
+        }
 
         self.info.set(Shared::new(&self.coll_handle, new_info));
     }
@@ -203,7 +214,7 @@ impl AudioClipHandle {
 
         state.pcm_path = pcm_path;
 
-        let mut new_info = AudioClipProcInfo::clone(&self.info.get());
+        let mut new_info = AudioClipProcState::clone(&self.info.get());
         new_info.resource = resource;
 
         self.info.set(Shared::new(&self.coll_handle, new_info));
@@ -219,8 +230,8 @@ impl AudioClipHandle {
     ) {
         state.fades = fades;
 
-        let mut new_info = AudioClipProcInfo::clone(&self.info.get());
-        new_info.fades = fades.to_proc_info(
+        let mut new_info = AudioClipProcState::clone(&self.info.get());
+        new_info.fades = fades.to_proc_state(
             tempo_map.sample_rate,
             new_info.timeline_start,
             new_info.timeline_end,
@@ -234,12 +245,12 @@ impl AudioClipHandle {
     }
 
     pub(super) fn update_tempo_map(&mut self, tempo_map: &TempoMap, state: &AudioClipState) {
-        let mut new_info = AudioClipProcInfo::clone(&self.info.get());
-        new_info.timeline_start = tempo_map.musical_to_nearest_sample_round(state.timeline_start);
-        new_info.timeline_end = tempo_map.seconds_to_nearest_sample_round(
-            tempo_map.musical_to_seconds(state.timeline_start) + state.duration,
-        );
-        new_info.fades = state.fades.to_proc_info(
+        let mut new_info = AudioClipProcState::clone(&self.info.get());
+        new_info.timeline_start = tempo_map.musical_to_nearest_frame_round(state.timeline_start);
+        new_info.timeline_end =
+            (tempo_map.musical_to_nearest_super_frame_round(state.timeline_start) + state.duration)
+                .to_nearest_frame_round(tempo_map.sample_rate);
+        new_info.fades = state.fades.to_proc_state(
             tempo_map.sample_rate,
             new_info.timeline_start,
             new_info.timeline_end,
@@ -249,35 +260,35 @@ impl AudioClipHandle {
     }
 }
 
-struct AudioClipParams {
+struct AudioClipParams<const MAX_BLOCKSIZE: usize> {
     pub clip_gain_amp: ParamF32<MAX_BLOCKSIZE>,
 }
 
 #[derive(Clone)]
-pub(super) struct AudioClipProcInfo {
-    pub(super) timeline_start: SampleTime,
-    pub(super) timeline_end: SampleTime,
+pub(super) struct AudioClipProcState {
+    pub(super) timeline_start: Frames,
+    pub(super) timeline_end: Frames,
 
     // Audio clip resources are always immutable. This reflects the non-destructive nature
     // of this sampler engine.
     resource: Shared<AudioClipResource>,
 
-    clip_start_offset: SampleTime,
+    clip_start_offset: i64, // i64 instead of frame because this can be negative.
 
-    fades: AudioClipFadesProcInfo,
+    fades: AudioClipFadesProcState,
 }
 
 #[derive(Clone)]
-pub struct AudioClipProcess {
+pub struct AudioClipProcess<const MAX_BLOCKSIZE: usize> {
     // Wrapping params in a shared pointer so we can clone this struct when compiling
     // a new list of processes. This should never cause a panic because this struct is the
     // only place this is ever borrowed.
-    params: Shared<AtomicRefCell<AudioClipParams>>,
+    params: Shared<AtomicRefCell<AudioClipParams<MAX_BLOCKSIZE>>>,
 
-    pub(super) info: Shared<SharedCell<AudioClipProcInfo>>,
+    pub(super) info: Shared<SharedCell<AudioClipProcState>>,
 }
 
-impl AudioClipProcess {
+impl<const MAX_BLOCKSIZE: usize> AudioClipProcess<MAX_BLOCKSIZE> {
     pub fn new(
         state: &AudioClipState,
         resource_cache: &ResourceCache,
@@ -304,23 +315,27 @@ impl AudioClipProcess {
                 .cache(state, &resource_cache.resource_loader)
         };
 
-        let timeline_start = tempo_map.musical_to_nearest_sample_round(state.timeline_start);
-        let timeline_end = tempo_map.seconds_to_nearest_sample_round(
-            tempo_map.musical_to_seconds(state.timeline_start) + state.duration,
-        );
+        let timeline_start = tempo_map.musical_to_nearest_frame_round(state.timeline_start);
+        let timeline_end = (tempo_map.musical_to_nearest_super_frame_round(state.timeline_start)
+            + state.duration)
+            .to_nearest_frame_round(tempo_map.sample_rate);
+
+        let mut clip_start_offset =
+            state.clip_start_offset.to_nearest_frame_round(tempo_map.sample_rate).0 as i64;
+        if state.clip_start_offset_is_negative {
+            clip_start_offset = -clip_start_offset;
+        };
 
         let info = Shared::new(
             coll_handle,
             SharedCell::new(Shared::new(
                 coll_handle,
-                AudioClipProcInfo {
+                AudioClipProcState {
                     resource,
                     timeline_start,
                     timeline_end,
-                    clip_start_offset: state
-                        .clip_start_offset
-                        .to_nearest_sample_round(tempo_map.sample_rate),
-                    fades: state.fades.to_proc_info(
+                    clip_start_offset,
+                    fades: state.fades.to_proc_state(
                         tempo_map.sample_rate,
                         timeline_start,
                         timeline_end,
@@ -344,53 +359,57 @@ impl AudioClipProcess {
 
     pub fn process(
         &self,
-        playhead: SampleTime,
-        frames: usize,
+        playhead: Frames,
+        proc_frames: ProcFrames<MAX_BLOCKSIZE>,
         out: &mut StereoBlockBuffer<f32, MAX_BLOCKSIZE>,
         out_offset: usize,
     ) {
         let info = self.info.get();
 
-        let mut params = self.params.borrow_mut();
-        let amp = params.clip_gain_amp.smoothed(frames);
+        if info.timeline_start > playhead {
+            return;
+        }
 
-        let mut copy_frames = frames;
+        let mut params = self.params.borrow_mut();
+        let amp = params.clip_gain_amp.smoothed(proc_frames);
+
+        let mut copy_frames = proc_frames.compiler_hint_frames();
         let mut copy_out_offset = out_offset;
         let mut skip = 0;
 
         // Find the sample to start reading from in the PCM resource.
-        let pcm_start =
-            playhead - info.timeline_start + info.clip_start_offset - info.resource.original_offset;
+        let pcm_start = playhead.0 as i64 - info.timeline_start.0 as i64 + info.clip_start_offset
+            - info.resource.original_offset.0 as i64;
 
-        if pcm_start >= SampleTime::from_usize(info.resource.pcm.len()) {
+        if pcm_start >= info.resource.pcm.frames().0 as i64 {
             // Out of range. Do nothing (add silence).
             return;
         }
 
-        let pcm_start = if pcm_start.0 < 0 {
-            if pcm_start + SampleTime::from_usize(frames) <= SampleTime::new(0) {
+        let pcm_start = if pcm_start < 0 {
+            if pcm_start + copy_frames as i64 <= 0 {
                 // Out of range. Do nothing (add silence).
                 return;
             }
 
             // Skip frames (insert silence) until there is data.
-            skip = (0 - pcm_start.0) as usize;
+            skip = (0 - pcm_start) as usize;
             copy_frames -= skip;
             copy_out_offset += skip;
 
             0
         } else {
-            pcm_start.0 as usize
+            pcm_start as usize
         };
 
-        if pcm_start + copy_frames > info.resource.pcm.len() {
+        if pcm_start + copy_frames > info.resource.pcm.frames().0 as usize {
             // Skip frames (add silence) after the end of the resource.
-            copy_frames = info.resource.pcm.len() - pcm_start;
+            copy_frames = info.resource.pcm.frames().0 as usize - pcm_start;
         }
 
         let amp = if amp.is_smoothing() {
             Some(amp)
-        } else if amp[0] != 1.0 {
+        } else if (amp[0] - 1.0).abs() < 0.00001 {
             Some(amp)
         } else {
             // Don't need to apply gain if amp is 1.0.
@@ -408,28 +427,27 @@ impl AudioClipProcess {
             copy_out_offset,
             pcm_start,
             skip,
-            copy_frames,
+            copy_frames.into(),
         )
     }
 }
 
 mod simd {
-    use super::{AnyPcm, AudioClipProcInfo, StereoBlockBuffer};
-    use crate::backend::MAX_BLOCKSIZE;
-    use rusty_daw_core::{SampleTime, SmoothOutputF32};
+    use super::{AnyPcm, AudioClipProcState, StereoBlockBuffer};
+    use rusty_daw_core::{Frames, ProcFrames, SmoothOutputF32};
 
-    pub(super) fn process_fallback(
-        playhead: SampleTime,
-        info: &AudioClipProcInfo,
+    pub(super) fn process_fallback<const MAX_BLOCKSIZE: usize>(
+        playhead: Frames,
+        info: &AudioClipProcState,
         out: &mut StereoBlockBuffer<f32, MAX_BLOCKSIZE>,
         amp: Option<SmoothOutputF32<MAX_BLOCKSIZE>>,
         copy_out_offset: usize,
         pcm_start: usize,
         skip: usize,
-        frames: usize,
+        proc_frames: ProcFrames<MAX_BLOCKSIZE>,
     ) {
         // Hint to compiler to optimize loops.
-        let frames = frames.min(MAX_BLOCKSIZE);
+        let frames = proc_frames.compiler_hint_frames();
 
         // Calculate fades.
         let mut do_fades = false;

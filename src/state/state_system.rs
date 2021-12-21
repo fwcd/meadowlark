@@ -2,25 +2,22 @@ use std::collections::VecDeque;
 
 use cpal::Stream;
 use rusty_daw_audio_graph::{GraphStateRef, NodeRef, PortType};
-use rusty_daw_core::{MusicalTime, SampleRate};
+use rusty_daw_core::{MusicalTime, SampleRate, SuperFrames};
 use vizia::{Lens, Model};
 
-use crate::backend::timeline::{
-    AudioClipFades, AudioClipState, LoopState, TimelineTrackHandle, TimelineTrackNode,
-    TimelineTrackState,
-};
+use crate::backend::timeline::{TimelineTrackHandle, TimelineTrackNode, TimelineTrackState};
 use crate::backend::{
     BackendCoreHandle, GlobalNodeData, ResourceCache, ResourceLoadError, MAX_BLOCKSIZE,
 };
 
-use super::ui_state::{AudioClipUiState, LoopUiState, TimelineTrackUiState, UiState};
+use super::ui_state::{LoopUiState, TimelineTrackUiState, UiState};
 use super::ProjectSaveState;
 
 pub struct Project {
     stream: Stream,
     pub save_state: ProjectSaveState,
     backend_core_handle: BackendCoreHandle,
-    pub timeline_track_handles: Vec<(NodeRef, TimelineTrackHandle)>,
+    pub timeline_track_handles: Vec<(NodeRef, TimelineTrackHandle<MAX_BLOCKSIZE>)>,
 }
 
 /// This struct is responsible for managing and mutating state of the entire application.
@@ -81,7 +78,8 @@ impl StateSystem {
         let (mut backend_core_handle, rt_state) =
             BackendCoreHandle::from_state(sample_rate, &mut save_state.backend_core);
 
-        let mut timeline_track_handles: Vec<(NodeRef, TimelineTrackHandle)> = Vec::new();
+        let mut timeline_track_handles: Vec<(NodeRef, TimelineTrackHandle<MAX_BLOCKSIZE>)> =
+            Vec::new();
         let mut resource_load_errors: Vec<ResourceLoadError> = Vec::new();
 
         //This function is temporary. Eventually we should use rusty-daw-io instead.
@@ -146,67 +144,21 @@ impl StateSystem {
         }
     }
 
-    // FIX ME
-    pub fn set_loop_end(&mut self, new_loop_end: MusicalTime) {
-        let loop_start = match &mut self.ui_state.timeline_transport.loop_state {
-            LoopUiState::Active { loop_start, loop_end } => {
-                if new_loop_end - *loop_start >= MusicalTime::new(0.1) {
-                    *loop_end = new_loop_end;
-                }
-                *loop_start
-            }
-
-            LoopUiState::Inactive => {
-                self.ui_state.timeline_transport.loop_state =
-                    LoopUiState::Active { loop_start: new_loop_end, loop_end: new_loop_end };
-
-                new_loop_end
-            }
-        };
-
-        self.ui_state.timeline_transport.seek_to = loop_start;
-
-        if let Some(project) = &mut self.project {
-            let (transport, _) = project
-                .backend_core_handle
-                .timeline_transport_mut(&mut project.save_state.backend_core);
-            if let Err(_) = transport.set_loop_state(
-                LoopState::Active { loop_start, loop_end: new_loop_end },
-                &mut project.save_state.backend_core.timeline_transport,
-            ) {
-                // TODO: Handle this.
-            }
+    pub fn set_loop_state(&mut self, mut loop_state: LoopUiState) {
+        // Make the minimum loop length 1/16 of a beat.
+        if loop_state.loop_end < loop_state.loop_start + MusicalTime::from_sixteenth_beats(0, 1) {
+            loop_state.loop_end = loop_state.loop_start + MusicalTime::from_sixteenth_beats(0, 1);
         }
-    }
-
-    // FIX ME
-    pub fn set_loop_start(&mut self, mut new_loop_start: MusicalTime) {
-        new_loop_start = MusicalTime::new(new_loop_start.0.max(0.0));
-        let loop_end = match &mut self.ui_state.timeline_transport.loop_state {
-            LoopUiState::Active { loop_start, loop_end } => {
-                if *loop_end - new_loop_start >= MusicalTime::new(0.1) {
-                    *loop_start = new_loop_start;
-                }
-
-                *loop_end
-            }
-
-            LoopUiState::Inactive => {
-                self.ui_state.timeline_transport.loop_state =
-                    LoopUiState::Active { loop_start: new_loop_start, loop_end: new_loop_start };
-
-                new_loop_start
-            }
-        };
-
-        self.ui_state.timeline_transport.seek_to = new_loop_start;
+        self.ui_state.timeline_transport.loop_state = loop_state;
+        self.ui_state.timeline_transport.seek_to = loop_state.loop_start;
 
         if let Some(project) = &mut self.project {
             let (transport, _) = project
                 .backend_core_handle
                 .timeline_transport_mut(&mut project.save_state.backend_core);
+
             if let Err(_) = transport.set_loop_state(
-                LoopState::Active { loop_start: new_loop_start, loop_end },
+                loop_state.to_backend_state(),
                 &mut project.save_state.backend_core.timeline_transport,
             ) {
                 // TODO: Handle this.
@@ -229,13 +181,18 @@ impl StateSystem {
                     track.audio_clip_mut(clip_id, timeline_tracks_state.get_mut(track_id).unwrap())
                 {
                     clip_handle.set_timeline_start(timeline_start, tempo_map, clip_state);
-                   
                 }
             }
         }
     }
 
-    pub fn trim_clip_start(&mut self, track_id: usize, clip_id: usize, timeline_start: MusicalTime) {
+    /*
+    pub fn trim_clip_start(
+        &mut self,
+        track_id: usize,
+        clip_id: usize,
+        timeline_start: MusicalTime,
+    ) {
         if let Some(track_state) = self.ui_state.timeline_tracks.get_mut(track_id) {
             if let Some(clip_state) = track_state.audio_clips.get_mut(clip_id) {
                 clip_state.timeline_start = timeline_start;
@@ -248,34 +205,41 @@ impl StateSystem {
                 if let Some((clip_handle, clip_state)) =
                     track.audio_clip_mut(clip_id, timeline_tracks_state.get_mut(track_id).unwrap())
                 {
-                    let offset = (timeline_start - clip_state.timeline_start).to_seconds(tempo_map.bpm());
-                    clip_handle.set_clip_start_offset(clip_state.clip_start_offset + offset, tempo_map, clip_state);
+                    let offset =
+                        (timeline_start - clip_state.timeline_start).to_seconds(tempo_map.bpm());
+                    clip_handle.set_clip_start_offset(
+                        clip_state.clip_start_offset + offset,
+                        tempo_map,
+                        clip_state,
+                    );
                     clip_handle.set_timeline_start(timeline_start, tempo_map, clip_state);
-                   
                 }
             }
         }
     }
+    */
 
     pub fn set_clip_end(&mut self, track_id: usize, clip_id: usize, clip_end: MusicalTime) {
         if let Some(track_state) = self.ui_state.timeline_tracks.get_mut(track_id) {
             if let Some(clip_state) = track_state.audio_clips.get_mut(clip_id) {
-                clip_state.duration =
-                    (clip_end - clip_state.timeline_start).to_seconds(self.ui_state.tempo_map.bpm);
-            }
-        }
+                clip_state.duration = if clip_state.timeline_start > clip_end {
+                    SuperFrames(0)
+                } else {
+                    (clip_end.checked_sub(clip_state.timeline_start).unwrap())
+                        .to_nearest_super_frame_round(self.ui_state.tempo_map.bpm)
+                };
 
-        if let Some(project) = &mut self.project {
-            if let Some((_, track)) = project.timeline_track_handles.get_mut(track_id) {
-                let (tempo_map, timeline_tracks_state) = project.save_state.timeline_tracks_mut();
-                if let Some((clip_handle, clip_state)) =
-                    track.audio_clip_mut(clip_id, timeline_tracks_state.get_mut(track_id).unwrap())
-                {
-                    clip_handle.set_duration(
-                        (clip_end - clip_state.timeline_start).to_seconds(tempo_map.bpm()),
-                        tempo_map,
-                        clip_state,
-                    );
+                if let Some(project) = &mut self.project {
+                    if let Some((_, track)) = project.timeline_track_handles.get_mut(track_id) {
+                        let (tempo_map, timeline_tracks_state) =
+                            project.save_state.timeline_tracks_mut();
+                        if let Some((clip_handle, clip_state)) = track.audio_clip_mut(
+                            clip_id,
+                            timeline_tracks_state.get_mut(track_id).unwrap(),
+                        ) {
+                            clip_handle.set_duration(clip_state.duration, tempo_map, clip_state);
+                        }
+                    }
                 }
             }
         }
@@ -289,7 +253,6 @@ impl StateSystem {
                 .backend_core_handle
                 .timeline_transport_mut(&mut project.save_state.backend_core);
             transport.seek_to(self.ui_state.timeline_transport.seek_to, transport_state);
-            
         }
     }
 
@@ -343,17 +306,18 @@ impl StateSystem {
 
     pub fn timeline_transport_stop(&mut self) {
         self.ui_state.timeline_transport.is_playing = false;
-        self.ui_state.timeline_transport.seek_to = 0.0.into();
+        self.ui_state.timeline_transport.seek_to = MusicalTime::new(0, 0);
 
         if let Some(project) = &mut self.project {
             let (transport, transport_state) = project
                 .backend_core_handle
                 .timeline_transport_mut(&mut project.save_state.backend_core);
             transport.set_playing(false);
-            transport.seek_to(0.0.into(), transport_state);
+            transport.seek_to(MusicalTime::new(0, 0), transport_state);
         }
     }
 
+    /*
     // Duplicates the timeline selection and places it after the selected region
     pub fn timeline_duplicate_selection(
         &mut self,
@@ -419,7 +383,9 @@ impl StateSystem {
             track.audio_clips.extend(selected_clips.into_iter());
         }
     }
+    */
 
+    /*
     // Removes a timeline selection
     pub fn timeline_remove_selection(
         &mut self,
@@ -466,6 +432,7 @@ impl StateSystem {
             }
         }
     }
+    */
 
     pub fn add_track(&mut self, new_track_state: TimelineTrackState) {
         // --- Load timeline track in UI ---------------------------
@@ -533,8 +500,7 @@ pub enum AppEvent {
     SeekTo(MusicalTime),
 
     // Loop Controls
-    SetLoopStart(MusicalTime),
-    SetLoopEnd(MusicalTime),
+    SetLoopState(LoopUiState),
 
     // Track Controls
     AddTrack, // TODO - add data needed for adding track before/after another track
@@ -563,11 +529,11 @@ impl Model for StateSystem {
 
                 // TIMELINE
                 AppEvent::DuplicateSelection(track_id, select_start, select_end) => {
-                    self.timeline_duplicate_selection(*track_id, *select_start, *select_end);
+                    //self.timeline_duplicate_selection(*track_id, *select_start, *select_end);
                 }
 
                 AppEvent::RemoveSelection(track_id, select_start, select_end) => {
-                    self.timeline_remove_selection(*track_id, *select_start, *select_end);
+                    //self.timeline_remove_selection(*track_id, *select_start, *select_end);
                 }
 
                 // TRANSPORT
@@ -596,12 +562,8 @@ impl Model for StateSystem {
                 }
 
                 // LOOP
-                AppEvent::SetLoopStart(loop_start) => {
-                    self.set_loop_start(*loop_start);
-                }
-
-                AppEvent::SetLoopEnd(loop_end) => {
-                    self.set_loop_end(*loop_end);
+                AppEvent::SetLoopState(loop_state) => {
+                    self.set_loop_state(*loop_state);
                 }
 
                 // TRACK
@@ -620,23 +582,20 @@ impl Model for StateSystem {
 
                 // CLIP
                 AppEvent::SetClipStart(track_id, clip_id, timeline_start) => {
-                    let timeline_start = MusicalTime::new(timeline_start.0.max(0.0));
-                    self.set_clip_start(*track_id, *clip_id, timeline_start);
+                    self.set_clip_start(*track_id, *clip_id, *timeline_start);
                 }
 
                 AppEvent::SetClipEnd(track_id, clip_id, timeline_start) => {
-                    let timeline_start = MusicalTime::new(timeline_start.0.max(0.0));
-                    self.set_clip_end(*track_id, *clip_id, timeline_start);
+                    self.set_clip_end(*track_id, *clip_id, *timeline_start);
                 }
 
                 AppEvent::TrimClipStart(track_id, clip_id, timeline_start) => {
-                    let timeline_start = MusicalTime::new(timeline_start.0.max(0.0));
-                    self.trim_clip_start(*track_id, *clip_id, timeline_start);
+                    //let timeline_start = MusicalTime::new(timeline_start.0.max(0.0));
+                    //self.trim_clip_start(*track_id, *clip_id, timeline_start);
                 }
 
                 AppEvent::TrimClipEnd(track_id, clip_id, timeline_start) => {
-                    let timeline_start = MusicalTime::new(timeline_start.0.max(0.0));
-                    self.set_clip_end(*track_id, *clip_id, timeline_start);
+                    self.set_clip_end(*track_id, *clip_id, *timeline_start);
                 }
             }
         }
@@ -646,7 +605,7 @@ impl Model for StateSystem {
 fn add_track_to_graph(
     new_track_state: TimelineTrackState,
     project_save_state: &mut ProjectSaveState,
-    timeline_track_handles: &mut Vec<(NodeRef, TimelineTrackHandle)>,
+    timeline_track_handles: &mut Vec<(NodeRef, TimelineTrackHandle<MAX_BLOCKSIZE>)>,
     graph: &mut GraphStateRef<GlobalNodeData, MAX_BLOCKSIZE>,
     resource_cache: &ResourceCache,
     resource_load_errors: &mut Vec<ResourceLoadError>,

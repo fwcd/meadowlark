@@ -2,7 +2,7 @@ use rusty_daw_core::MusicalTime;
 use vizia::*;
 
 use crate::state::{
-    ui_state::{LoopUiState, TimelineSelectionUiState, TimelineTransportUiState, UiState},
+    ui_state::{LoopStatusUiState, TimelineSelectionUiState, TimelineTransportUiState, UiState},
     StateSystem,
 };
 
@@ -12,8 +12,8 @@ pub fn timeline_view(cx: &mut Context) {
     TimelineSelectionUiState {
         track_start: 0,
         track_end: 0,
-        select_start: MusicalTime::new(0.0),
-        select_end: MusicalTime::new(1.0),
+        select_start: MusicalTime::new(0, 0),
+        select_end: MusicalTime::new(1, 0),
 
         hovered_track: 0,
     }
@@ -26,10 +26,10 @@ pub fn timeline_view(cx: &mut Context) {
         if cx.data::<TimelineViewState>().is_none() {
             // Create some internal slider data (not exposed to the user)
             TimelineViewState {
-                start_time: MusicalTime::new(0.into()),
-                end_time: MusicalTime::new(15.into()),
-                timeline_start: MusicalTime::new(0.into()),
-                timeline_end: MusicalTime::new(30.into()),
+                start_time: MusicalTime::new(0, 0),
+                end_time: MusicalTime::new(15, 0),
+                timeline_start: MusicalTime::new(0, 0),
+                timeline_end: MusicalTime::new(30, 0),
                 width: 0.0,
                 posx: 0.0,
             }
@@ -38,10 +38,10 @@ pub fn timeline_view(cx: &mut Context) {
 
         ZStack::new(cx, |cx| {
             Binding::new(cx, TimelineViewState::root, |cx, track_view_state| {
-                let start_beats = track_view_state.get(cx).start_time;
-                let end_beats = track_view_state.get(cx).end_time;
-                let timeline_start = track_view_state.get(cx).timeline_start;
-                let timeline_end = track_view_state.get(cx).timeline_end;
+                let start_beats = track_view_state.get(cx).start_time.as_beats_f64();
+                let end_beats = track_view_state.get(cx).end_time.as_beats_f64();
+                let timeline_start = track_view_state.get(cx).timeline_start.as_beats_f64();
+                let timeline_end = track_view_state.get(cx).timeline_end.as_beats_f64();
                 let timeline_width = track_view_state.get(cx).width;
 
                 Binding::new(
@@ -68,15 +68,19 @@ pub fn timeline_view(cx: &mut Context) {
                                         .then(TimelineTransportUiState::loop_state),
                                     move |cx, loop_state| {
                                         let loop_state = loop_state.get(cx);
-                                        match loop_state {
-                                            LoopUiState::Active { loop_start, loop_end } => {
-                                                let loop_start_pos = (loop_start.0 - start_beats.0)
-                                                    / (end_beats.0 - start_beats.0);
-                                                let loop_end_pos = (loop_end.0 - start_beats.0)
-                                                    / (end_beats.0 - start_beats.0);
+                                        match loop_state.status {
+                                            LoopStatusUiState::Active => {
+                                                let loop_start =
+                                                    loop_state.loop_start.as_beats_f64();
+                                                let loop_end = loop_state.loop_end.as_beats_f64();
+
+                                                let loop_start_pos = (loop_start - start_beats)
+                                                    / (end_beats - start_beats);
+                                                let loop_end_pos = (loop_end - start_beats)
+                                                    / (end_beats - start_beats);
                                                 //println!("loop_start: {:?} loop_end: {:?} start_beats: {:?} end_beats: {:?}", loop_start, loop_end, start_beats, end_beats);
-                                                let should_display = *loop_start >= start_beats
-                                                    || *loop_end >= start_beats;
+                                                let should_display = loop_start >= start_beats
+                                                    || loop_end >= start_beats;
                                                 LoopRegion::new(cx)
                                                     .display(if should_display {
                                                         Display::Flex
@@ -93,7 +97,7 @@ pub fn timeline_view(cx: &mut Context) {
                                                     ));
                                             }
 
-                                            LoopUiState::Inactive => {
+                                            LoopStatusUiState::Inactive => {
                                                 Element::new(cx).display(Display::None);
                                             }
                                         }
@@ -123,8 +127,8 @@ pub fn timeline_view(cx: &mut Context) {
                                     / (timeline_end - timeline_start);
                                 //Element::new(cx)
                                 ScrollBar::new(cx)
-                                    .left(Pixels(start_ratio.0 as f32 * timeline_width))
-                                    .width(Pixels(width_ratio.0 as f32 * timeline_width))
+                                    .left(Pixels(start_ratio as f32 * timeline_width))
+                                    .width(Pixels(width_ratio as f32 * timeline_width))
                                     .background_color(Color::rgb(126, 118, 119));
                             })
                             .child_space(Pixels(1.0))
@@ -135,13 +139,12 @@ pub fn timeline_view(cx: &mut Context) {
                             //});
                         });
 
-                        let current_beats = playhead.get(cx);
+                        let current_beats = playhead.get(cx).as_beats_f64();
 
                         let should_display =
-                            current_beats.0 >= start_beats.0 && current_beats.0 <= end_beats.0;
+                            current_beats >= start_beats && current_beats <= end_beats;
 
-                        let mut ratio =
-                            (current_beats.0 - start_beats.0) / (end_beats.0 - start_beats.0);
+                        let mut ratio = (current_beats - start_beats) / (end_beats - start_beats);
                         ratio = ratio.clamp(0.0, 1.0);
 
                         // Playhead
@@ -198,20 +201,23 @@ pub struct TimelineViewState {
 impl TimelineViewState {
     // Converts absolute cursor position into musical time
     pub fn cursor_to_musical(&self, cursorx: f32) -> MusicalTime {
-        let beats = self.start_time.0
-            + ((cursorx - self.posx) / self.width) as f64 * (self.end_time.0 - self.start_time.0);
-        MusicalTime::new(beats.into())
+        let beats = self.start_time.as_beats_f64()
+            + ((cursorx - self.posx) / self.width) as f64
+                * (self.end_time.as_beats_f64() - self.start_time.as_beats_f64());
+        MusicalTime::from_beats_f64(beats)
     }
 
     // Converts delta cursor movement into musical time
     pub fn delta_to_musical(&self, cursorx: f32) -> MusicalTime {
-        let beats = (cursorx / self.width) as f64 * (self.end_time.0 - self.start_time.0);
-        MusicalTime::new(beats.into())
+        let beats = (cursorx / self.width) as f64
+            * (self.end_time.as_beats_f64() - self.start_time.as_beats_f64());
+        MusicalTime::from_beats_f64(beats)
     }
 
     pub fn delta_to_musical2(&self, cursorx: f32) -> MusicalTime {
-        let beats = (cursorx / self.width) as f64 * (self.timeline_end.0 - self.timeline_start.0);
-        MusicalTime::new(beats.into())
+        let beats = (cursorx / self.width) as f64
+            * (self.timeline_end.as_beats_f64() - self.timeline_start.as_beats_f64());
+        MusicalTime::from_beats_f64(beats)
     }
 }
 
@@ -234,20 +240,32 @@ impl Model for TimelineViewState {
 
                 TimelineViewEvent::ShiftBackwards(time_shift) => {
                     if self.start_time >= *time_shift {
-                        self.start_time -= *time_shift;
-                        self.end_time -= *time_shift;
+                        self.start_time = self.start_time.checked_sub(*time_shift).unwrap();
+                        self.end_time = self.end_time.checked_sub(*time_shift).unwrap();
                     }
                 }
 
                 TimelineViewEvent::SetStartTime(start_time) => {
-                    if self.end_time - *start_time >= MusicalTime::new(0.2) {
-                        self.start_time = MusicalTime::new(start_time.0.max(self.timeline_start.0));
+                    if let Some(delta) = self.end_time.checked_sub(*start_time) {
+                        if delta >= MusicalTime::from_sixteenth_beats(0, 1) {
+                            self.start_time = if *start_time >= self.timeline_start {
+                                *start_time
+                            } else {
+                                self.timeline_start
+                            };
+                        }
                     }
                 }
 
                 TimelineViewEvent::SetEndTime(end_time) => {
-                    if *end_time - self.start_time >= MusicalTime::new(0.2) {
-                        self.end_time = MusicalTime::new(end_time.0.min(self.timeline_end.0));
+                    if let Some(delta) = end_time.checked_sub(self.start_time) {
+                        if delta >= MusicalTime::from_sixteenth_beats(0, 1) {
+                            self.end_time = if *end_time <= self.timeline_end {
+                                *end_time
+                            } else {
+                                self.timeline_end
+                            };
+                        }
                     }
                 }
 
@@ -304,11 +322,10 @@ impl ScrollBar {
             drag_end: false,
             dragging: false,
 
-            timeline_start: MusicalTime::new(0.0),
-            timeline_end: MusicalTime::new(0.0),
-            start_time: MusicalTime::new(0.0),
-            end_time: MusicalTime::new(0.0),
-            
+            timeline_start: MusicalTime::default(),
+            timeline_end: MusicalTime::default(),
+            start_time: MusicalTime::default(),
+            end_time: MusicalTime::default(),
 
             left_edge: 0.0,
         }
@@ -377,44 +394,57 @@ impl View for ScrollBar {
                     if let Some(timeline_view_state) = cx.data::<TimelineViewState>() {
                         let timeline_width = timeline_view_state.width;
                         let timeline_posx = timeline_view_state.posx;
-                        let start_time = timeline_view_state.start_time;
-                        let end_time = timeline_view_state.end_time;
+                        let timeline_start = self.timeline_start.as_beats_f64();
+                        let timeline_end = self.timeline_end.as_beats_f64();
+                        let self_start_time = self.start_time.as_beats_f64();
+                        let self_end_time = self.end_time.as_beats_f64();
+                        let view_start_time = timeline_view_state.start_time.as_beats_f64();
+                        let view_end_time = timeline_view_state.end_time.as_beats_f64();
 
                         if self.dragging {
                             //let mut delta = (*x - timeline_posx) / timeline_width;
-                            let delta = (*x - cx.mouse.left.pos_down.0) / timeline_width;
-                            let start_time =
-                                MusicalTime::new(delta.into()) * (self.timeline_end - self.timeline_start);
+                            let delta = ((*x - cx.mouse.left.pos_down.0) / timeline_width) as f64;
+                            let start_time = delta * (timeline_end - timeline_start);
                             //println!("Start Time: {:?}", self.start_time + start_time);
-                            let musical = timeline_view_state.delta_to_musical2(*x - cx.mouse.left.pos_down.0);
+                            let musical = timeline_view_state
+                                .delta_to_musical2(*x - cx.mouse.left.pos_down.0)
+                                .as_beats_f64();
                             //println!("Start Time: {:?}", self.timeline_start);
                             //println!("New Start: {:?}", musical);
-                            if self.start_time.0 + musical.0 <= self.timeline_start.0 {
-                                cx.emit(TimelineViewEvent::SetStartTime(self.timeline_start));
-                                cx.emit(TimelineViewEvent::SetEndTime(self.timeline_start + (self.end_time - self.start_time)));
-                            } else if self.end_time.0 + musical.0 >= self.timeline_end.0 {
-                                cx.emit(TimelineViewEvent::SetEndTime(self.timeline_end));
-                                cx.emit(TimelineViewEvent::SetStartTime(self.timeline_end - (self.end_time - self.start_time)));
+                            let (start, end) = if self_start_time + musical <= timeline_start {
+                                (timeline_start, timeline_start + (self_end_time - self_start_time))
+                            } else if self_end_time + musical >= timeline_end {
+                                (timeline_end - (self_end_time - self_start_time), timeline_end)
                             } else {
-                                cx.emit(TimelineViewEvent::SetStartTime(self.start_time + musical));
-                                cx.emit(TimelineViewEvent::SetEndTime(self.end_time + musical));
-                            }
+                                (self_start_time + musical, self_end_time + musical)
+                            };
+
+                            cx.emit(TimelineViewEvent::SetStartTime(MusicalTime::from_beats_f64(
+                                start,
+                            )));
+                            cx.emit(TimelineViewEvent::SetEndTime(MusicalTime::from_beats_f64(
+                                end,
+                            )));
                         }
 
                         if self.drag_end {
-                            let mut delta = (*x - timeline_posx) / timeline_width;
+                            let mut delta = ((*x - timeline_posx) / timeline_width) as f64;
                             delta = delta.clamp(0.0, 1.0);
-                            let end_time =
-                                MusicalTime::new(delta.into()) * (self.timeline_end - self.timeline_start);
-                            cx.emit(TimelineViewEvent::SetEndTime(end_time));
+                            let end_time = delta * (timeline_end - timeline_start);
+
+                            cx.emit(TimelineViewEvent::SetEndTime(MusicalTime::from_beats_f64(
+                                end_time,
+                            )));
                         }
 
                         if self.drag_start {
-                            let mut delta = (*x - timeline_posx) / timeline_width;
+                            let mut delta = ((*x - timeline_posx) / timeline_width) as f64;
                             delta = delta.clamp(0.0, 1.0);
-                            let start_time =
-                                MusicalTime::new(delta.into()) * (self.timeline_end - self.timeline_start);
-                            cx.emit(TimelineViewEvent::SetStartTime(start_time));
+                            let start_time = delta * (timeline_end - timeline_start);
+
+                            cx.emit(TimelineViewEvent::SetStartTime(MusicalTime::from_beats_f64(
+                                start_time,
+                            )));
                         }
                     }
                 }

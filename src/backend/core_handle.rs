@@ -12,10 +12,11 @@ use std::time::Duration;
 use crate::backend::resource_loader::ResourceLoader;
 use crate::backend::state::BackendCoreState;
 use crate::backend::timeline::{
-    AudioClipResourceCache, TimelineTransport, TimelineTransportHandle, TimelineTransportState,
+    AudioClipResourceCache, TimelineGlobalData, TimelineTransport, TimelineTransportHandle,
+    TimelineTransportState,
 };
 
-use super::{timeline::TempoMap, MAX_BLOCKSIZE};
+use super::MAX_BLOCKSIZE;
 
 static COLLECT_INTERVAL: Duration = Duration::from_secs(3);
 
@@ -34,7 +35,13 @@ impl Clone for ResourceCache {
 }
 
 pub struct GlobalNodeData {
-    pub transport: TimelineTransport,
+    pub transport: TimelineTransport<MAX_BLOCKSIZE>,
+}
+
+impl TimelineGlobalData<MAX_BLOCKSIZE> for GlobalNodeData {
+    fn timeline_transport(&self) -> &TimelineTransport<MAX_BLOCKSIZE> {
+        &self.transport
+    }
 }
 
 pub struct BackendCoreHandle {
@@ -42,7 +49,7 @@ pub struct BackendCoreHandle {
 
     resource_cache: ResourceCache,
 
-    timeline_transport: TimelineTransportHandle,
+    timeline_transport: TimelineTransportHandle<MAX_BLOCKSIZE>,
 
     sample_rate: SampleRate,
 
@@ -184,14 +191,14 @@ impl BackendCoreHandle {
     pub fn timeline_transport<'a>(
         &self,
         state: &'a BackendCoreState,
-    ) -> (&TimelineTransportHandle, &'a TimelineTransportState) {
+    ) -> (&TimelineTransportHandle<MAX_BLOCKSIZE>, &'a TimelineTransportState) {
         (&self.timeline_transport, &state.timeline_transport)
     }
 
     pub fn timeline_transport_mut<'a>(
         &mut self,
         state: &'a mut BackendCoreState,
-    ) -> (&mut TimelineTransportHandle, &'a mut TimelineTransportState) {
+    ) -> (&mut TimelineTransportHandle<MAX_BLOCKSIZE>, &'a mut TimelineTransportState) {
         (&mut self.timeline_transport, &mut state.timeline_transport)
     }
 

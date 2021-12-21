@@ -1,5 +1,3 @@
-use std::fmt::format;
-
 use vizia::*;
 
 use super::timeline_view::TimelineViewState;
@@ -16,15 +14,15 @@ impl TimelineGrid {
 impl View for TimelineGrid {
     fn draw(&self, cx: &Context, canvas: &mut Canvas) {
         if let Some(timeline_view) = cx.data::<TimelineViewState>() {
-            let start_time = timeline_view.start_time;
-            let end_time = timeline_view.end_time;
-            let timeline_start = timeline_view.timeline_start;
-            let timeline_end = timeline_view.timeline_end;
+            let start_time = timeline_view.start_time.as_beats_f64();
+            let end_time = timeline_view.end_time.as_beats_f64();
+            //let timeline_start = timeline_view.timeline_start.as_beats_f64();
+            //let timeline_end = timeline_view.timeline_end.as_beats_f64();
             let timeline_width = timeline_view.width;
 
             let bounds = cx.cache.get_bounds(cx.current);
 
-            let pixels_per_beat = timeline_width / (end_time - start_time).0 as f32;
+            let pixels_per_beat = timeline_width / (end_time - start_time) as f32;
 
             //println!("Pixels per beat: {}", pixels_per_beat);
 
@@ -54,8 +52,8 @@ impl View for TimelineGrid {
 
             canvas.scissor(bounds.x, bounds.y, bounds.w, bounds.h);
 
-            for i in (start_time.0.floor() as usize)..(end_time.0.ceil() as usize) {
-                let ratio = (i as f64 - start_time.0) / (end_time.0 - start_time.0);
+            for i in (start_time.floor() as usize)..(end_time.ceil() as usize) {
+                let ratio = (i as f64 - start_time) / (end_time - start_time);
                 let mut path = Path::new();
                 path.move_to(bounds.x + (ratio as f32 * timeline_width).floor(), bounds.y);
                 path.line_to(
@@ -76,8 +74,8 @@ impl View for TimelineGrid {
 
                 if pixels_per_beat >= 100.0 && pixels_per_beat < 400.0 {
                     for j in 1..4 {
-                        let ratio = (i as f64 + j as f64 * 0.25 - start_time.0)
-                            / (end_time.0 - start_time.0);
+                        let ratio =
+                            (i as f64 + j as f64 * 0.25 - start_time) / (end_time - start_time);
                         let mut path = Path::new();
                         path.move_to(bounds.x + (ratio as f32 * timeline_width).floor(), bounds.y);
                         path.line_to(
@@ -102,8 +100,8 @@ impl View for TimelineGrid {
 
                 if pixels_per_beat >= 300.0 {
                     for j in 1..4 {
-                        let ratio = (i as f64 + j as f64 * 0.25 - start_time.0)
-                            / (end_time.0 - start_time.0);
+                        let ratio =
+                            (i as f64 + j as f64 * 0.25 - start_time) / (end_time - start_time);
                         let mut text_paint = Paint::color(femtovg::Color::rgb(255, 255, 255));
                         text_paint.set_font(&[font_id.clone()]);
                         text_paint.set_text_align(Align::Left);
@@ -119,8 +117,8 @@ impl View for TimelineGrid {
 
                 if pixels_per_beat >= 400.0 {
                     for j in 1..16 {
-                        let ratio = (i as f64 + j as f64 * 0.0625 - start_time.0)
-                            / (end_time.0 - start_time.0);
+                        let ratio =
+                            (i as f64 + j as f64 * 0.0625 - start_time) / (end_time - start_time);
                         let mut path = Path::new();
                         path.move_to(bounds.x + (ratio as f32 * timeline_width).floor(), bounds.y);
                         path.line_to(

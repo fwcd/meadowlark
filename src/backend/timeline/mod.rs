@@ -12,5 +12,5 @@ pub use audio_clip::{
 };
 pub use state::{AudioClipState, TimelineTrackState, TimelineTransportState};
 pub use tempo_map::TempoMap;
-pub use timeline_track_node::{TimelineTrackHandle, TimelineTrackNode};
+pub use timeline_track_node::{TimelineGlobalData, TimelineTrackHandle, TimelineTrackNode};
 pub use transport::{LoopState, TimelineTransport, TimelineTransportHandle};

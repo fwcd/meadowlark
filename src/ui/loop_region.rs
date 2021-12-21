@@ -1,7 +1,9 @@
-use rusty_daw_core::MusicalTime;
 use vizia::*;
 
-use crate::state::AppEvent;
+use crate::state::{
+    ui_state::{LoopStatusUiState, LoopUiState},
+    AppEvent,
+};
 
 use super::timeline_view::TimelineViewState;
 
@@ -72,32 +74,42 @@ impl View for LoopRegion {
                     }
 
                     if let Some(timeline_view_state) = cx.data::<TimelineViewState>() {
+                        let start_time = timeline_view_state.start_time.as_beats_f64();
+                        let end_time = timeline_view_state.end_time.as_beats_f64();
 
-                        let pixels_per_beat = timeline_view_state.width
-                                / (timeline_view_state.end_time - timeline_view_state.start_time).0
-                                    as f32;
+                        let pixels_per_beat =
+                            timeline_view_state.width / (end_time - start_time) as f32;
 
                         let mut musical_pos = timeline_view_state.cursor_to_musical(*x);
 
                         // Snapping
                         if pixels_per_beat >= 100.0 && pixels_per_beat < 400.0 {
-                            musical_pos = MusicalTime::new((musical_pos.0 * 4.0).round() / 4.0);
+                            musical_pos = musical_pos.snap_to_nearest_whole_beats(4);
                         } else if pixels_per_beat >= 400.0 {
-                            musical_pos =
-                                MusicalTime::new((musical_pos.0 * 16.0).round() / 16.0);
+                            musical_pos = musical_pos.snap_to_nearest_whole_beats(16);
                         } else {
-                            musical_pos = MusicalTime::new(musical_pos.0.round());
+                            musical_pos = musical_pos.snap_to_nearest_beat();
                         }
 
                         // // Snapping
                         // musical_pos = MusicalTime::new(musical_pos.0.round());
 
-                        if self.drag_end {
-                            cx.emit(AppEvent::SetLoopEnd(musical_pos));
-                        }
+                        if self.drag_start || self.drag_end {
+                            let loop_state = if self.drag_start {
+                                LoopUiState {
+                                    status: LoopStatusUiState::Active,
+                                    loop_start: musical_pos,
+                                    loop_end: timeline_view_state.end_time,
+                                }
+                            } else {
+                                LoopUiState {
+                                    status: LoopStatusUiState::Active,
+                                    loop_start: timeline_view_state.start_time,
+                                    loop_end: musical_pos,
+                                }
+                            };
 
-                        if self.drag_start {
-                            cx.emit(AppEvent::SetLoopStart(musical_pos));
+                            cx.emit(AppEvent::SetLoopState(loop_state));
                         }
                     }
                 }

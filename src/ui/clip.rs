@@ -151,17 +151,20 @@ impl View for Clip {
                             let mut musical_pos = timeline_view_state.cursor_to_musical(*x);
 
                             let pixels_per_beat = timeline_view_state.width
-                                / (timeline_view_state.end_time - timeline_view_state.start_time).0
-                                    as f32;
-
-                            
+                                / (timeline_view_state
+                                    .end_time
+                                    .checked_sub(timeline_view_state.start_time)
+                                    .unwrap())
+                                .as_beats_f64() as f32;
 
                             // Snapping
+                            /*
                             if cx.data::<ClipData>().unwrap().should_snap {
                                 if pixels_per_beat >= 100.0 && pixels_per_beat < 400.0 {
                                     musical_delta =
                                         MusicalTime::new((musical_delta.0 * 4.0).round() / 4.0);
-                                    musical_pos = MusicalTime::new((musical_pos.0 * 4.0).round() / 4.0);
+                                    musical_pos =
+                                        MusicalTime::new((musical_pos.0 * 4.0).round() / 4.0);
                                 } else if pixels_per_beat >= 400.0 {
                                     musical_delta =
                                         MusicalTime::new((musical_delta.0 * 16.0).round() / 16.0);
@@ -172,13 +175,10 @@ impl View for Clip {
                                     musical_pos = MusicalTime::new(musical_pos.0.round());
                                 }
                             }
-
-
+                            */
 
                             if dragging {
-
-                                if start_time.0 + musical_delta.0 <= timeline_start.0 {
-
+                                if start_time + musical_delta <= timeline_start {
                                     cx.emit(AppEvent::SetClipStart(
                                         self.track_id,
                                         self.clip_id,
@@ -189,10 +189,10 @@ impl View for Clip {
                                         self.track_id,
                                         self.track_id,
                                         timeline_start,
-                                        timeline_start + (self.clip_end - self.clip_start),
+                                        timeline_start
+                                            + (self.clip_end.checked_sub(self.clip_start).unwrap()),
                                     ));
-
-                                } 
+                                }
                                 // else if start_time.0 + self.clip_end.0 + musical_delta.0 >= timeline_end.0 {
                                 //     println!("start_time: {:?}, clip_end: {:?}, musical_dela: {:?}, timeline_end: {:?}", start_time, self.clip_end, musical_delta, timeline_end);
                                 //     //cx.emit(TimelineViewEvent::SetEndTime(self.timeline_end));
@@ -210,7 +210,7 @@ impl View for Clip {
                                 //         timeline_end  - (self.clip_end - self.clip_start),
                                 //         timeline_end,
                                 //     ));
-                                // } 
+                                // }
                                 else {
                                     //cx.emit(TimelineViewEvent::SetStartTime(self.start_time + musical));
                                     //cx.emit(TimelineViewEvent::SetEndTime(self.end_time + musical));
@@ -228,11 +228,6 @@ impl View for Clip {
                                         end_time + musical_delta,
                                     ));
                                 }
-
-
-                                
-
-                                
                             }
 
                             if resize_end {
@@ -349,8 +344,10 @@ impl View for Clip {
                                     timeline_selection.track_start,
                                     timeline_selection.select_end,
                                     timeline_selection.select_end
-                                        + (timeline_selection.select_end
-                                            - timeline_selection.select_start),
+                                        + (timeline_selection
+                                            .select_end
+                                            .checked_sub(timeline_selection.select_start)
+                                            .unwrap()),
                                 ));
                             }
                         }
@@ -385,14 +382,14 @@ impl View for Clip {
                         cx.emit(ClipEvent::Snap(true));
                     }
 
-                    _=> {}
-                }
+                    _ => {}
+                },
 
                 _ => {}
             }
         }
     }
- 
+
     // Custom drawing for clip waveforms
     fn draw(&self, cx: &Context, canvas: &mut Canvas) {
         let bounds = cx.cache.get_bounds(cx.current);
@@ -424,14 +421,28 @@ impl View for Clip {
                     if let Some((clip, clip_state)) = track
                         .audio_clip(self.clip_id, timeline_tracks_state.get(self.track_id).unwrap())
                     {
-                        let (duration_time, duration_frac)  =
+                        /*
+                        let (duration_time, duration_frac) =
                             clip_state.duration.to_sub_sample(tempo_map.sample_rate);
                         let sample_duration = duration_time.0 as f64 + duration_frac;
 
-                        println!("Sample Duration: {} {:?} {}", sample_duration, clip_state.duration, bounds.w);
-                        
-                        let (offset_time, offset_frac) = clip_state.clip_start_offset.to_sub_sample(tempo_map.sample_rate);
+                        println!(
+                            "Sample Duration: {} {:?} {}",
+                            sample_duration, clip_state.duration, bounds.w
+                        );
+
+                        let (offset_time, offset_frac) =
+                            clip_state.clip_start_offset.to_sub_sample(tempo_map.sample_rate);
                         let sample_offset = offset_time.0 as f64 + offset_frac;
+                        */
+
+                        let sample_offset = clip_state
+                            .clip_start_offset
+                            .to_nearest_frame_round(tempo_map.sample_rate)
+                            .0 as f64;
+                        let sample_duration =
+                            clip_state.duration.to_nearest_frame_round(tempo_map.sample_rate).0
+                                as f64;
 
                         let clip_resource = clip.resource();
 

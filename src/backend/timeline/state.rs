@@ -1,4 +1,4 @@
-use rusty_daw_core::{MusicalTime, Seconds};
+use rusty_daw_core::{MusicalTime, SuperFrames};
 use std::path::PathBuf;
 
 use super::{AudioClipFades, LoopState};
@@ -12,7 +12,7 @@ pub struct TimelineTransportState {
 
 impl Default for TimelineTransportState {
     fn default() -> Self {
-        Self { seek_to: MusicalTime::new(0.0), loop_state: LoopState::Inactive }
+        Self { seek_to: MusicalTime::default(), loop_state: LoopState::Inactive }
     }
 }
 
@@ -38,10 +38,13 @@ pub struct AudioClipState {
     pub timeline_start: MusicalTime,
 
     /// The duration of the clip on the timeline.
-    pub duration: Seconds,
+    pub duration: SuperFrames,
 
     /// The offset in the pcm resource where the "start" of the clip should start playing from.
-    pub clip_start_offset: Seconds,
+    pub clip_start_offset: SuperFrames,
+
+    /// Whether or not the `clip_start_offset` value should be positive (false) or negative (true)
+    pub clip_start_offset_is_negative: bool,
 
     /// The gain of the audio clip in decibels.
     pub clip_gain_db: f32,

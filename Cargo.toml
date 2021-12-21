@@ -9,15 +9,16 @@ license = "GPL-3.0"
 
 [dependencies]
 # rusty-daw-io = { git = "https://github.com/RustyDAW/rusty-daw-io", rev = "e67441ad100ca6d629a1324835ecdc7b2ec5478e" }
-rusty-daw-core = "0.2"
-rusty-daw-audio-graph = { git = "https://github.com/RustyDAW/rusty-daw-audio-graph.git", rev = "d6b7b7fe24af4e6f9a93323e72c003631056de2b", features = ["cpal-backend"] }
+rusty-daw-core = "0.7"
+rusty-daw-audio-graph = { git = "https://github.com/RustyDAW/rusty-daw-audio-graph.git", rev = "898a5fee4533275406844875aa4646cd8fa987eb", features = ["cpal-backend"] }
 # rusty-daw-audio-graph = { path = "../rusty-daw-audio-graph", features = ["cpal-backend"] }
 cpal = "0.13"
 im = "15.0"
 
 
 # vizia = {path = "../vizia", features = ["meadowlark"]}
-vizia = {git = "https://github.com/geom3trik/VIZIA", branch = "main", features = ["meadowlark"]}
+vizia = {git = "https://github.com/geom3trik/VIZIA", rev = "1d8da188be60d354d5221ace83528443e078e10c", features = ["meadowlark"]}
+#vizia = {git = "https://github.com/geom3trik/VIZIA", branch = "main", features = ["meadowlark"]}
 audio-waveform-mipmap = {git = "https://github.com/RustyDAW/audio-waveform-mipmap", branch = "main"}
 ringbuf = "0.2"
 basedrop = "0.1"
