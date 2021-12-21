@@ -65,7 +65,7 @@ const STYLE: &str = r#"
     }
 "#;
 
-pub fn run() {
+pub fn run() -> Result<(), String> {
     let icon = image::open("./assets/branding/meadowlark-logo-32.png").unwrap();
 
     let window_description = WindowDescription::new()
@@ -112,4 +112,6 @@ pub fn run() {
     //     cx.emit(AppEvent::Sync);
     // })
     app.run();
+
+    Ok(())
 }

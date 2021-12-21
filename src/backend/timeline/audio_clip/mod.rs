@@ -3,8 +3,7 @@ use basedrop::{Handle, Shared, SharedCell};
 use rusty_daw_audio_graph::node::{DB_GRADIENT, SMOOTH_SECS};
 use rusty_daw_core::block_buffer::StereoBlockBuffer;
 use rusty_daw_core::{
-    Frames, MusicalTime, ParamF32, ParamF32UiHandle, ProcFrames, SampleRate, Seconds, SuperFrames,
-    Unit,
+    Frames, MusicalTime, ParamF32, ParamF32UiHandle, ProcFrames, SampleRate, SuperFrames, Unit,
 };
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
@@ -31,7 +30,7 @@ pub struct AudioClipFades {
 
 impl AudioClipFades {
     pub const DEFAULT_FADE_DURATION: SuperFrames =
-        Seconds(10.0 / 1_000.0).to_nearest_super_frame_round();
+        SuperFrames(((10.0 / 1_000.0) * 508_032_000.0) as u64);
 
     pub fn no_fade() -> Self {
         Self { start_fade_duration: SuperFrames(0), end_fade_duration: SuperFrames(0) }

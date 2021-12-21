@@ -19,7 +19,7 @@ pub fn transport_controls(cx: &mut Context) {
                     .then(UiState::timeline_transport)
                     .then(TimelineTransportUiState::playhead),
                 |cx, playhead| {
-                    let beats = playhead.get(cx).0;
+                    let beats = playhead.get(cx).as_beats_f64();
                     Label::new(
                         cx,
                         &format!(

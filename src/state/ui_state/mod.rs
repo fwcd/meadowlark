@@ -46,7 +46,7 @@ impl Default for UiState {
             tempo_map: TempoMapUiState { bpm: 110.0 },
 
             timeline_tracks: Vec::new(),
-            sample_rate: SampleRate::new(Default::default()),
+            sample_rate: SampleRate::default(),
         }
     }
 }
