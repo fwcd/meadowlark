@@ -60,7 +60,7 @@ pub fn transport_controls(cx: &mut Context) {
                         .font("icons")
                         .font_size(24.0)
                         .width(Stretch(1.0))
-                        .child_space(Stretch(1.0));
+                        .child_space(Stretch(1.0))
                 },
             )
             .width(Pixels(30.0))
