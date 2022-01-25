@@ -29,7 +29,7 @@ pub fn transport_controls(cx: &mut Context) {
                             ((beats * 4.0) as i32 % 4) + 1
                         ),
                     )
-                    .width(Pixels(50.0))
+                    .class("transport_playhead")
                     .background_color(Color::rgba(255, 255, 0, 0));
                 },
             );
@@ -40,14 +40,10 @@ pub fn transport_controls(cx: &mut Context) {
                     .then(UiState::timeline_transport)
                     .then(TimelineTransportUiState::is_playing),
                 |cx, is_playing| {
+                    // Play/Pause button
                     Checkbox::with_icons(cx, *is_playing.get(cx), ICON_PAUSE, ICON_PLAY)
                         .on_checked(cx, |cx| cx.emit(AppEvent::Play))
                         .on_unchecked(cx, |cx| cx.emit(AppEvent::Pause))
-                        .top(Stretch(1.0))
-                        .bottom(Stretch(1.0))
-                        .background_color(Color::rgba(255, 0, 255, 0))
-                        .width(Pixels(30.0))
-                        .height(Pixels(30.0))
                         .class("play_button");
                 },
             );
@@ -67,7 +63,11 @@ pub fn transport_controls(cx: &mut Context) {
             .height(Pixels(30.0))
             .background_color(Color::rgba(255, 0, 0, 0));
         })
-        .height(Pixels(30.0));
+        .height(Pixels(30.0))
+        .col_between(Pixels(5.0))
+        .child_top(Stretch(1.0))
+        .child_bottom(Stretch(1.0));
+
     })
     .child_space(Pixels(10.0));
 }

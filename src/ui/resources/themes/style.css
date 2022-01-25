@@ -1,0 +1,43 @@
+* {
+    border-width: 1px;
+    border-color: red;
+}
+
+.divider {
+    top: 1s;
+    bottom: 1s;
+    width: 2px;
+    height: 4s;
+    background-color: #242424;
+}
+
+label {
+    color: white;
+}
+
+/* TRANSPORT CONTROLS */
+.play_button {
+    border-width: 0px;
+    font-size: 24px;
+    color: #f54e47;
+    width: 30px;
+    height: 30px;
+}
+
+.transport_playhead {
+    width: 40px;
+    height: 30px;
+    child-left: 0px;
+}
+
+.clip_header {
+    cursor: grab;
+}
+
+.resize_ew {
+    cursor: ew-resize;
+}
+
+.resize_ns {
+    cursor: ns-resize;
+}
