@@ -14,5 +14,5 @@ impl Waveform {
 impl View for Waveform {
     fn event(&mut self, cx: &mut Context, event: &mut Event) {}
 
-    fn draw(&self, cx: &Context, canvas: &mut Canvas) {}
+    fn draw(&self, cx: &mut Context, canvas: &mut Canvas) {}
 }

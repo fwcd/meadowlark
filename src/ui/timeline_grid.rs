@@ -7,12 +7,12 @@ pub struct TimelineGrid {}
 
 impl TimelineGrid {
     pub fn new(cx: &mut Context) -> Handle<Self> {
-        Self {}.build2(cx, |cx| {})
+        Self {}.build2(cx, |_cx| {})
     }
 }
 
 impl View for TimelineGrid {
-    fn draw(&self, cx: &Context, canvas: &mut Canvas) {
+    fn draw(&self, cx: &mut Context, canvas: &mut Canvas) {
         if let Some(timeline_view) = cx.data::<TimelineViewState>() {
             let start_time = timeline_view.start_time.as_beats_f64();
             let end_time = timeline_view.end_time.as_beats_f64();
@@ -26,12 +26,12 @@ impl View for TimelineGrid {
 
             //println!("Pixels per beat: {}", pixels_per_beat);
 
-            let font = cx.style.borrow().font.get(cx.current).cloned().unwrap_or_default();
+            let font = cx.style.font.get(cx.current).cloned().unwrap_or_default();
 
             let default_font = cx
                 .resource_manager
                 .fonts
-                .get(&cx.style.borrow().default_font)
+                .get(&cx.style.default_font)
                 .and_then(|font| match font {
                     FontOrId::Id(id) => Some(id),
                     _ => None,
@@ -84,17 +84,6 @@ impl View for TimelineGrid {
                         );
                         canvas
                             .stroke_path(&mut path, Paint::color(femtovg::Color::rgb(46, 46, 46)));
-
-                        // let mut text_paint = Paint::color(femtovg::Color::rgb(255, 255, 255));
-                        // text_paint.set_font(&[font_id.clone()]);
-                        // text_paint.set_text_align(Align::Left);
-                        // text_paint.set_text_baseline(Baseline::Top);
-                        // canvas.fill_text(
-                        //     bounds.x + (ratio as f32 * timeline_width).floor() + 2.0,
-                        //     bounds.y,
-                        //     &(i + 1).to_string(),
-                        //     text_paint,
-                        // );
                     }
                 }
 

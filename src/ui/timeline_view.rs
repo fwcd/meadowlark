@@ -37,130 +37,181 @@ pub fn timeline_view(cx: &mut Context) {
         }
 
         ZStack::new(cx, |cx| {
-            Binding::new(cx, TimelineViewState::root, |cx, track_view_state| {
-                let start_beats = track_view_state.get(cx).start_time.as_beats_f64();
-                let end_beats = track_view_state.get(cx).end_time.as_beats_f64();
-                let timeline_start = track_view_state.get(cx).timeline_start.as_beats_f64();
-                let timeline_end = track_view_state.get(cx).timeline_end.as_beats_f64();
-                let timeline_width = track_view_state.get(cx).width;
+            // Grid lines
+            TimelineGrid::new(cx).z_order(1).hoverable(false);
 
-                Binding::new(
+            VStack::new(cx, move |cx| {
+                // Bars
+                Element::new(cx).height(Pixels(20.0));
+
+                // Loop Bar
+                ZStack::new(cx, move |cx| {
+
+                    // LoopRegion::new(cx)
+                    // .background_color(Color::rgba(
+                    //     50, 100, 255, 120,
+                    // ))
+                    // .width(Stretch(1.0))
+                    // .bind(StateSystem::ui_state
+                    // .then(UiState::timeline_transport)
+                    // .then(TimelineTransportUiState::loop_state), |handle, loop_state|{
+                    //     let loop_state = loop_state.get(handle.cx);
+                    //     match loop_state.status {
+                    //         LoopStatusUiState::Active => {
+                    //             let loop_start =
+                    //                 loop_state.loop_start.as_beats_f64();
+                    //             let loop_end = loop_state.loop_end.as_beats_f64();
+
+                    //             handle
+                    //                 .bind(TimelineViewState::root, move |handle, track_view_state|{
+                    //                     let start_beats = track_view_state.get(handle.cx).start_time.as_beats_f64();
+                    //                     let end_beats = track_view_state.get(handle.cx).end_time.as_beats_f64();
+                    //                     let loop_start_pos = (loop_start - start_beats)
+                    //                         / (end_beats - start_beats);
+                    //                     let loop_end_pos = (loop_end - start_beats)
+                    //                         / (end_beats - start_beats);
+                    //                     let should_display = loop_start >= start_beats
+                    //                         || loop_end >= start_beats;
+
+                    //                     handle
+                    //                         .display(if should_display {
+                    //                             Display::Flex
+                    //                         } else {
+                    //                             Display::None
+                    //                         })
+                    //                         .left(Percentage(loop_start_pos as f32 * 100.0))
+                    //                         .right(Percentage(
+                    //                             (1.0 - loop_end_pos as f32) * 100.0,
+                    //                         ));
+                    //                 });
+
+                    //         }
+
+                    //         LoopStatusUiState::Inactive => {
+                    //             //Element::new(cx).display(Display::None);
+                    //         }
+                    //     }
+                    // });
+
+                    // Binding::new(
+                    //     cx,
+                    //     StateSystem::ui_state
+                    //         .then(UiState::timeline_transport)
+                    //         .then(TimelineTransportUiState::loop_state),
+                    //     move |cx, loop_state| {
+                    //         let loop_state = loop_state.get(cx);
+                    //         match loop_state.status {
+                    //             LoopStatusUiState::Active => {
+                    //                 let loop_start =
+                    //                     loop_state.loop_start.as_beats_f64();
+                    //                 let loop_end = loop_state.loop_end.as_beats_f64();
+
+                    //                 let loop_start_pos = (loop_start - start_beats)
+                    //                     / (end_beats - start_beats);
+                    //                 let loop_end_pos = (loop_end - start_beats)
+                    //                     / (end_beats - start_beats);
+                    //                 //println!("loop_start: {:?} loop_end: {:?} start_beats: {:?} end_beats: {:?}", loop_start, loop_end, start_beats, end_beats);
+                    //                 let should_display = loop_start >= start_beats
+                    //                     || loop_end >= start_beats;
+                    //                 LoopRegion::new(cx)
+                    //                     .display(if should_display {
+                    //                         Display::Flex
+                    //                     } else {
+                    //                         Display::None
+                    //                     })
+                    //                     .background_color(Color::rgba(
+                    //                         50, 100, 255, 120,
+                    //                     ))
+                    //                     .width(Stretch(1.0))
+                    //                     .left(Percentage(loop_start_pos as f32 * 100.0))
+                    //                     .right(Percentage(
+                    //                         (1.0 - loop_end_pos as f32) * 100.0,
+                    //                     ));
+                    //             }
+
+                    //             LoopStatusUiState::Inactive => {
+                    //                 Element::new(cx).display(Display::None);
+                    //             }
+                    //         }
+                    //     },
+                    // );
+                })
+                .height(Pixels(20.0))
+                .background_color(Color::rgb(68, 60, 60))
+                .bottom(Pixels(2.0));
+
+                // Tracks
+                List::new(
                     cx,
+                    StateSystem::ui_state.then(UiState::timeline_tracks),
+                    |cx, index, track_data| {
+                        track(cx, index, track_data);
+                    },
+                )
+                .row_between(Pixels(2.0));
+
+                // Scrollbar
+                ZStack::new(cx, move |cx| {
+                    ScrollBar::new(cx)
+                        .bind(TimelineViewState::root, |handle, track_view_state| {
+                            let start_beats =
+                                track_view_state.get(handle.cx).start_time.as_beats_f64();
+                            let end_beats = track_view_state.get(handle.cx).end_time.as_beats_f64();
+                            let timeline_start =
+                                track_view_state.get(handle.cx).timeline_start.as_beats_f64();
+                            let timeline_end =
+                                track_view_state.get(handle.cx).timeline_end.as_beats_f64();
+                            let timeline_width = track_view_state.get(handle.cx).width;
+                            let timeline_beats = end_beats - start_beats;
+                            let width_ratio = timeline_beats / (timeline_end - timeline_start);
+                            let start_ratio =
+                                (start_beats - timeline_start) / (timeline_end - timeline_start);
+
+                            handle
+                                .left(Pixels(start_ratio as f32 * timeline_width))
+                                .width(Pixels(width_ratio as f32 * timeline_width));
+                        })
+                        .background_color(Color::rgb(126, 118, 119));
+                })
+                .child_space(Pixels(1.0))
+                .background_color(Color::rgb(36, 36, 36))
+                .height(Pixels(15.0))
+                .z_order(5);
+            });
+
+            // Playhead
+            Element::new(cx)
+                .bind(
                     StateSystem::ui_state
                         .then(UiState::timeline_transport)
                         .then(TimelineTransportUiState::playhead),
-                    move |cx, playhead| {
-                        let timeline_beats = end_beats - start_beats;
+                    |handle, playhead| {
+                        let current_beats = playhead.get(handle.cx).as_beats_f64();
 
-                        // Grid lines
-                        TimelineGrid::new(cx).z_order(1).hoverable(false);
+                        handle.bind(TimelineViewState::root, move |handle, track_view_state| {
+                            let start_beats =
+                                track_view_state.get(handle.cx).start_time.as_beats_f64();
+                            let end_beats = track_view_state.get(handle.cx).end_time.as_beats_f64();
+                            let should_display =
+                                current_beats >= start_beats && current_beats <= end_beats;
 
-                        VStack::new(cx, move |cx| {
-                            // Bars
-                            Element::new(cx).height(Pixels(20.0));
+                            let mut ratio =
+                                (current_beats - start_beats) / (end_beats - start_beats);
+                            ratio = ratio.clamp(0.0, 1.0);
 
-                            // Loop Bar
-                            ZStack::new(cx, move |cx| {
-                                Binding::new(
-                                    cx,
-                                    StateSystem::ui_state
-                                        .then(UiState::timeline_transport)
-                                        .then(TimelineTransportUiState::loop_state),
-                                    move |cx, loop_state| {
-                                        let loop_state = loop_state.get(cx);
-                                        match loop_state.status {
-                                            LoopStatusUiState::Active => {
-                                                let loop_start =
-                                                    loop_state.loop_start.as_beats_f64();
-                                                let loop_end = loop_state.loop_end.as_beats_f64();
-
-                                                let loop_start_pos = (loop_start - start_beats)
-                                                    / (end_beats - start_beats);
-                                                let loop_end_pos = (loop_end - start_beats)
-                                                    / (end_beats - start_beats);
-                                                //println!("loop_start: {:?} loop_end: {:?} start_beats: {:?} end_beats: {:?}", loop_start, loop_end, start_beats, end_beats);
-                                                let should_display = loop_start >= start_beats
-                                                    || loop_end >= start_beats;
-                                                LoopRegion::new(cx)
-                                                    .display(if should_display {
-                                                        Display::Flex
-                                                    } else {
-                                                        Display::None
-                                                    })
-                                                    .background_color(Color::rgba(
-                                                        50, 100, 255, 120,
-                                                    ))
-                                                    .width(Stretch(1.0))
-                                                    .left(Percentage(loop_start_pos as f32 * 100.0))
-                                                    .right(Percentage(
-                                                        (1.0 - loop_end_pos as f32) * 100.0,
-                                                    ));
-                                            }
-
-                                            LoopStatusUiState::Inactive => {
-                                                Element::new(cx).display(Display::None);
-                                            }
-                                        }
-                                    },
-                                );
-                            })
-                            .height(Pixels(20.0))
-                            .background_color(Color::rgb(68, 60, 60))
-                            .bottom(Pixels(2.0));
-
-                            // Tracks
-                            List::new(
-                                cx,
-                                StateSystem::ui_state.then(UiState::timeline_tracks),
-                                |cx, track_data| {
-                                    track(cx, track_data.index(), track_data);
-                                },
-                            )
-                            .row_between(Pixels(2.0));
-
-                            // Scrollbar
-                            //HStack::new(cx, move |cx|{
-                            //Button::new(cx, |_|{}, |_|{}).width(Pixels(15.0)).height(Pixels(15.0));
-                            ZStack::new(cx, move |cx| {
-                                let width_ratio = timeline_beats / (timeline_end - timeline_start);
-                                let start_ratio = (start_beats - timeline_start)
-                                    / (timeline_end - timeline_start);
-                                //Element::new(cx)
-                                ScrollBar::new(cx)
-                                    .left(Pixels(start_ratio as f32 * timeline_width))
-                                    .width(Pixels(width_ratio as f32 * timeline_width))
-                                    .background_color(Color::rgb(126, 118, 119));
-                            })
-                            .child_space(Pixels(1.0))
-                            .background_color(Color::rgb(36, 36, 36))
-                            .height(Pixels(15.0))
-                            .z_order(5);
-                            //Button::new(cx, |_|{}, |_|{}).width(Pixels(15.0)).height(Pixels(15.0));
-                            //});
+                            handle.left(Percentage(ratio as f32 * 100.0)).display(
+                                if should_display { Display::Flex } else { Display::None },
+                            );
                         });
-
-                        let current_beats = playhead.get(cx).as_beats_f64();
-
-                        let should_display =
-                            current_beats >= start_beats && current_beats <= end_beats;
-
-                        let mut ratio = (current_beats - start_beats) / (end_beats - start_beats);
-                        ratio = ratio.clamp(0.0, 1.0);
-
-                        // Playhead
-                        Element::new(cx)
-                            .background_color(Color::rgb(170, 161, 164))
-                            .left(Percentage(ratio as f32 * 100.0))
-                            .width(Pixels(1.0))
-                            .display(if should_display { Display::Flex } else { Display::None })
-                            .z_order(4);
                     },
-                );
-            });
+                )
+                .background_color(Color::rgb(170, 161, 164))
+                .width(Pixels(1.0))
+                .z_order(4);
         })
         .background_color(Color::rgb(42, 37, 39))
         .overflow(Overflow::Hidden)
-        .on_move(cx, |cx, x, y| {
+        .on_move(|cx, x, y| {
             if x >= cx.cache.get_posx(cx.current) + cx.cache.get_width(cx.current) - 10.0
                 && x <= cx.cache.get_posx(cx.current) + cx.cache.get_width(cx.current)
             {
@@ -175,7 +226,7 @@ pub fn timeline_view(cx: &mut Context) {
                 //cx.emit(TimelineViewEvent::ShiftBackwards(MusicalTime::new(1.0)));
             }
         })
-        .on_geo_changed(cx, |cx, geo| {
+        .on_geo_changed(|cx, geo| {
             if geo.contains(GeometryChanged::WIDTH_CHANGED) {
                 cx.emit(TimelineViewEvent::SetWidth(cx.cache.get_width(cx.current)));
             }
@@ -359,7 +410,7 @@ impl View for ScrollBar {
                             self.timeline_end = timeline_view_state.timeline_end;
                             self.start_time = timeline_view_state.start_time;
                             self.end_time = timeline_view_state.end_time;
-                            println!("This: {:?}", self.start_time);
+                            //println!("This: {:?}", self.start_time);
                         }
                     }
                 }
@@ -403,12 +454,14 @@ impl View for ScrollBar {
 
                         if self.dragging {
                             //let mut delta = (*x - timeline_posx) / timeline_width;
-                            let delta = ((*x - cx.mouse.left.pos_down.0) / timeline_width) as f64;
-                            let start_time = delta * (timeline_end - timeline_start);
-                            //println!("Start Time: {:?}", self.start_time + start_time);
-                            let musical = timeline_view_state
-                                .delta_to_musical2(*x - cx.mouse.left.pos_down.0)
-                                .as_beats_f64();
+                            let delta = *x - cx.mouse.left.pos_down.0;
+                            //let start_time = delta * (timeline_end - timeline_start);
+                            //println!("Start Time: {:?}", start_time);
+                            let mut musical =
+                                timeline_view_state.delta_to_musical2(delta.abs()).as_beats_f64();
+                            if delta < 0.0 {
+                                musical = -musical;
+                            }
                             //println!("Start Time: {:?}", self.timeline_start);
                             //println!("New Start: {:?}", musical);
                             let (start, end) = if self_start_time + musical <= timeline_start {
@@ -418,6 +471,8 @@ impl View for ScrollBar {
                             } else {
                                 (self_start_time + musical, self_end_time + musical)
                             };
+
+                            //println!("Start: {}", start);
 
                             cx.emit(TimelineViewEvent::SetStartTime(MusicalTime::from_beats_f64(
                                 start,
@@ -447,6 +502,10 @@ impl View for ScrollBar {
                             )));
                         }
                     }
+                }
+
+                WindowEvent::MouseScroll(x, y) => {
+                    // TODO - Pan timeline with scroll wheel
                 }
 
                 _ => {}

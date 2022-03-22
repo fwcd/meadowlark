@@ -11,8 +11,9 @@ const ICON_PAUSE: &str = "\u{2389}";
 
 pub fn transport_controls(cx: &mut Context) {
     VStack::new(cx, |cx| {
-        Label::new(cx, "TRANSPORT");
+        Label::new(cx, "TRANSPORT").class("control_header");
         HStack::new(cx, |cx| {
+            // Playhead Position
             Binding::new(
                 cx,
                 StateSystem::ui_state
@@ -34,20 +35,40 @@ pub fn transport_controls(cx: &mut Context) {
                 },
             );
 
+            // // Play Button
+            // //Binding::new(
+            // //    cx,
+            // //    StateSystem::ui_state
+            // //        .then(UiState::timeline_transport)
+            // //        .then(TimelineTransportUiState::is_playing),
+            // //    |cx, is_playing| {
+            //         // Play/Pause button
+            //         Checkbox::new(cx, StateSystem::ui_state
+            //             .then(UiState::timeline_transport)
+            //             .then(TimelineTransportUiState::is_playing))
+            //             .on_toggle(|cx| cx.emit(AppEvent::Play))
+            //             .class("play_button");
+            // //    },
+            // //);
+
             Binding::new(
                 cx,
                 StateSystem::ui_state
                     .then(UiState::timeline_transport)
                     .then(TimelineTransportUiState::is_playing),
                 |cx, is_playing| {
-                    // Play/Pause button
-                    Checkbox::with_icons(cx, *is_playing.get(cx), ICON_PAUSE, ICON_PLAY)
-                        .on_checked(cx, |cx| cx.emit(AppEvent::Play))
-                        .on_unchecked(cx, |cx| cx.emit(AppEvent::Pause))
-                        .class("play_button");
+                    if *is_playing.get(cx) {
+                        Label::new(cx, ICON_PAUSE)
+                    } else {
+                        Label::new(cx, ICON_PLAY)
+                    }
+                    .on_press(|cx| cx.emit(AppEvent::Play))
+                    .font("icon")
+                    .class("play_button");
                 },
             );
 
+            // Stop Button
             Button::new(
                 cx,
                 |cx| cx.emit(AppEvent::Stop),
@@ -59,15 +80,9 @@ pub fn transport_controls(cx: &mut Context) {
                         .child_space(Stretch(1.0))
                 },
             )
-            .width(Pixels(30.0))
-            .height(Pixels(30.0))
-            .background_color(Color::rgba(255, 0, 0, 0));
+            .class("stop_button");
         })
-        .height(Pixels(30.0))
-        .col_between(Pixels(5.0))
-        .child_top(Stretch(1.0))
-        .child_bottom(Stretch(1.0));
-
+        .class("control_stack");
     })
     .child_space(Pixels(10.0));
 }

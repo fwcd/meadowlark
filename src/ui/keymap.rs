@@ -16,7 +16,7 @@ impl Keymap {
             (builder)(cx);
         });
 
-        cx.focused = cx.current;
+        handle.cx.focused = handle.cx.current;
 
         handle
     }

@@ -13,8 +13,9 @@ use super::{timeline_view::TimelineViewState, Clip};
 
 pub fn track<D>(cx: &mut Context, track_id: usize, track_data: D)
 where
-    D: 'static + DataHandle<Data = TimelineTrackUiState>,
+    D: 'static + Lens<Target = TimelineTrackUiState> + Copy,
 {
+    let track_height = track_data.get(cx).height;
     // This ZStack isn't strictly necessary but the bindings mess with the list so this is a temporary fix
     ZStack::new(cx, move |cx| {
         Binding::new(
@@ -34,8 +35,8 @@ where
                                 cx.remove(child);
                             }
 
-                            cx.style.borrow_mut().needs_relayout = true;
-                            cx.style.borrow_mut().needs_redraw = true;
+                            cx.style.needs_relayout = true;
+                            cx.style.needs_redraw = true;
                         }
 
                         for (clip_id, clip) in clip_data.iter().enumerate() {
@@ -96,9 +97,9 @@ where
             },
         );
     })
-    .height(Pixels(track_data.get(cx).height))
+    .height(Pixels(track_height))
     .background_color(Color::rgb(68, 60, 60))
-    .on_over(cx, move |cx| {
+    .on_over(move |cx| {
         cx.emit(TimelineSelectionEvent::SetHoveredTrack(track_id));
     });
 }

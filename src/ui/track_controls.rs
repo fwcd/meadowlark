@@ -1,3 +1,4 @@
+use image::GenericImageView;
 use vizia::*;
 
 use crate::state::{
@@ -24,7 +25,7 @@ impl TrackControlsView {
                 Label::new(cx, "LOOP")
                     .height(Pixels(20.0))
                     .width(Stretch(1.0))
-                    .child_left(Stretch(0.0))
+                    .child_left(Pixels(0.0))
                     .child_right(Pixels(5.0))
                     .bottom(Pixels(2.0));
 
@@ -32,13 +33,13 @@ impl TrackControlsView {
                 List::new(
                     cx,
                     StateSystem::ui_state.then(UiState::timeline_tracks),
-                    |cx, track_data| {
-                        //track_controls(cx, track_data);
-                        TrackControls::new(cx, track_data.index(), track_data);
+                    |cx, index, track_data| {
+                        TrackControls::new(cx, index, track_data);
                     },
                 )
                 .row_between(Pixels(2.0))
-                .height(Auto);
+                .height(Auto)
+                .width(Stretch(1.0));
 
                 // Temporary add track button
                 // Button::new(cx, |cx| {println!("Add Track")}, |cx|{
@@ -73,8 +74,7 @@ impl View for TrackControlsView {
                     self.resizing = false;
 
                     // Bit of a hack
-                    let cursor =
-                        cx.style.borrow().cursor.get(cx.hovered).cloned().unwrap_or_default();
+                    let cursor = cx.style.cursor.get(cx.hovered).cloned().unwrap_or_default();
                     cx.emit(WindowEvent::SetCursor(cursor));
                 }
 
@@ -84,13 +84,11 @@ impl View for TrackControlsView {
                         let mut right = *x - cx.cache.get_posx(cx.current);
                         // Use min/max _width instead
                         right = right.clamp(100.0, 300.0);
-
                         cx.style
-                            .borrow_mut()
                             .width
                             .insert(cx.current, Pixels(right - cx.cache.get_posx(cx.current)));
-                        cx.style.borrow_mut().needs_relayout = true;
-                        cx.style.borrow_mut().needs_redraw = true;
+                        cx.style.needs_relayout = true;
+                        cx.style.needs_redraw = true;
                     }
                 }
 
@@ -108,11 +106,12 @@ pub struct TrackControls {
 impl TrackControls {
     pub fn new<D>(cx: &mut Context, track_id: usize, track_data: D) -> Handle<Self>
     where
-        D: 'static + DataHandle<Data = TimelineTrackUiState>,
+        D: 'static + Lens<Target = TimelineTrackUiState>,
     {
         Self { resizing: false, track_id }
             .build2(cx, move |cx| {
                 VStack::new(cx, move |cx| {
+                    let track_height = track_data.get(cx).height;
                     HStack::new(cx, move |cx| {
                         // Track Controls
                         HStack::new(cx, move |cx| {
@@ -120,45 +119,51 @@ impl TrackControls {
                             Element::new(cx)
                                 .width(Pixels(15.0))
                                 .background_color(Color::rgb(251, 144, 96));
+                            // Controls
                             VStack::new(cx, move |cx| {
                                 HStack::new(cx, move |cx| {
-                                    let track_data = track_data.get(cx).clone();
-
-                                    Label::new(cx, &track_data.name);
-                                    // Record Button
+                                    //let track_data = track_data.get(cx).clone();
+                                    // Track name
+                                    Label::new(cx, track_data.map(|track| track.name.clone()))
+                                        .class("track_control_label");
+                                    // Record button
                                     Button::new(cx, |_| {}, |cx| Label::new(cx, "R"))
                                         .width(Pixels(30.0))
-                                        .height(Pixels(30.0));
-                                    // Solo Button
+                                        .height(Pixels(30.0))
+                                        .class("track_control_button");
+                                    // Solo button
                                     Button::new(cx, |_| {}, |cx| Label::new(cx, "M"))
                                         .width(Pixels(30.0))
-                                        .height(Pixels(30.0));
-                                    // Mute Button
+                                        .height(Pixels(30.0))
+                                        .class("track_control_button");
+                                    // Mute button
                                     Button::new(cx, |_| {}, |cx| Label::new(cx, "S"))
                                         .width(Pixels(30.0))
-                                        .height(Pixels(30.0));
-                                });
+                                        .height(Pixels(30.0))
+                                        .class("track_control_button");
+                                })
+                                .class("track_control_upper");
                             })
                             .background_color(Color::rgb(179, 172, 174));
-                            Element::new(cx)
-                                .position_type(PositionType::SelfDirected)
-                                .left(Stretch(1.0))
-                                .right(Pixels(0.0))
-                                .width(Pixels(5.0))
-                                //.background_color(Color::red())
-                                .class("resize_ew");
-                        });
-                        // Clips
-                    })
-                    .height(Pixels(track_data.get(cx).height));
 
-                    Element::new(cx)
-                        .position_type(PositionType::SelfDirected)
-                        .top(Stretch(1.0))
-                        .bottom(Pixels(0.0))
-                        .height(Pixels(5.0))
-                        //.background_color(Color::red())
-                        .class("resize_ns");
+                            // Element::new(cx)
+                            //     .position_type(PositionType::SelfDirected)
+                            //     .left(Stretch(1.0))
+                            //     .right(Pixels(0.0))
+                            //     .width(Pixels(5.0))
+                            //     //.background_color(Color::red())
+                            //     .class("resize_ew");
+                        });
+                    })
+                    .height(Pixels(track_height));
+
+                    // Element::new(cx)
+                    //     .position_type(PositionType::SelfDirected)
+                    //     .top(Stretch(1.0))
+                    //     .bottom(Pixels(0.0))
+                    //     .height(Pixels(5.0))
+                    //     //.background_color(Color::red())
+                    //     .class("resize_ns");
                 });
             })
             .height(Auto)
@@ -186,8 +191,7 @@ impl View for TrackControls {
                     self.resizing = false;
 
                     // Bit of a hack
-                    let cursor =
-                        cx.style.borrow().cursor.get(cx.hovered).cloned().unwrap_or_default();
+                    let cursor = cx.style.cursor.get(cx.hovered).cloned().unwrap_or_default();
                     cx.emit(WindowEvent::SetCursor(cursor));
                 }
 

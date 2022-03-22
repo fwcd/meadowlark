@@ -33,38 +33,6 @@ pub use waveform::*;
 mod timeline_grid;
 pub use timeline_grid::*;
 
-// const STYLE: &str = r#"
-//     .divider {
-//         top: 1s;
-//         bottom: 1s;
-//         width: 2px;
-//         height: 4s;
-//         background-color: #242424;
-//     }
-
-//     label {
-//         color: white;
-//     }
-
-//     .play_button {
-//         border-width: 0px;
-//         font-size: 24px;
-//         color: #f54e47;
-//     }
-
-//     .clip_header {
-//         cursor: grab;
-//     }
-
-//     .resize_ew {
-//         cursor: ew-resize;
-//     }
-
-//     .resize_ns {
-//         cursor: ns-resize;
-//     }
-// "#;
-
 pub fn run() -> Result<(), String> {
     let icon = image::open("./assets/branding/meadowlark-logo-32.png").unwrap();
 
@@ -95,7 +63,7 @@ pub fn run() -> Result<(), String> {
                 .bottom(Pixels(1.0));
 
                 // Tracks View
-                //timeline_view(cx);
+                timeline_view(cx);
             })
             .background_color(Color::rgb(10, 10, 10));
         });
@@ -108,9 +76,6 @@ pub fn run() -> Result<(), String> {
         std::thread::sleep(std::time::Duration::from_millis(16));
     });
 
-    // .on_idle(|cx|{
-    //     cx.emit(AppEvent::Sync);
-    // })
     app.run();
 
     Ok(())

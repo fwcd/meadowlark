@@ -34,7 +34,7 @@ impl Clip {
         clip_end: MusicalTime,
     ) -> Handle<Self> {
         Self { track_id, clip_id, clip_start, clip_end }
-            .update(cx, move |cx| {
+            .build2(cx, move |cx| {
                 cx.focused = cx.current;
 
                 if cx.data::<ClipData>().is_none() {
@@ -90,7 +90,7 @@ impl Clip {
                     .width(Stretch(1.0))
                     .background_color(Color::rgb(251, 144, 96))
                     .class("clip_header")
-                    .on_press(cx, move |cx| {
+                    .on_press(move |cx| {
                         cx.emit(ClipEvent::SetDragging(true));
                         cx.emit(TimelineSelectionEvent::SetSelection(
                             track_id, track_id, clip_start, clip_end,
@@ -130,13 +130,8 @@ impl View for Clip {
                                 cx.emit(WindowEvent::SetCursor(CursorIcon::EwResize));
                             } else {
                                 //cx.emit(WindowEvent::SetCursor(CursorIcon::Default));
-                                let cursor = cx
-                                    .style
-                                    .borrow()
-                                    .cursor
-                                    .get(cx.hovered)
-                                    .cloned()
-                                    .unwrap_or_default();
+                                let cursor =
+                                    cx.style.cursor.get(cx.hovered).cloned().unwrap_or_default();
                                 cx.emit(WindowEvent::SetCursor(cursor));
                             }
                         }
@@ -282,13 +277,8 @@ impl View for Clip {
                         cx.captured = Entity::null();
                         if cx.hovered != cx.current {
                             //cx.emit(WindowEvent::SetCursor(CursorIcon::Default));
-                            let cursor = cx
-                                .style
-                                .borrow()
-                                .cursor
-                                .get(cx.hovered)
-                                .cloned()
-                                .unwrap_or_default();
+                            let cursor =
+                                cx.style.cursor.get(cx.hovered).cloned().unwrap_or_default();
                             cx.emit(WindowEvent::SetCursor(cursor));
                         }
                     }
@@ -391,7 +381,7 @@ impl View for Clip {
     }
 
     // Custom drawing for clip waveforms
-    fn draw(&self, cx: &Context, canvas: &mut Canvas) {
+    fn draw(&self, cx: &mut Context, canvas: &mut Canvas) {
         let bounds = cx.cache.get_bounds(cx.current);
         let header_height = 20.0;
 
@@ -403,7 +393,7 @@ impl View for Clip {
         //canvas.scissor(bounds.x, bounds.y, bounds.w, bounds.h);
 
         let background_color =
-            cx.style.borrow().background_color.get(cx.current).cloned().unwrap_or_default();
+            cx.style.background_color.get(cx.current).cloned().unwrap_or_default();
 
         let opacity = cx.cache.get_opacity(cx.current);
 
