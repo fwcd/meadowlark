@@ -13,7 +13,7 @@ pub fn transport_controls(cx: &mut Context) {
     VStack::new(cx, |cx| {
         Label::new(cx, "TRANSPORT").class("control_header");
         HStack::new(cx, |cx| {
-            // Playhead Position
+            // Playhead Position Label
             Binding::new(
                 cx,
                 StateSystem::ui_state
@@ -35,22 +35,8 @@ pub fn transport_controls(cx: &mut Context) {
                 },
             );
 
-            // // Play Button
-            // //Binding::new(
-            // //    cx,
-            // //    StateSystem::ui_state
-            // //        .then(UiState::timeline_transport)
-            // //        .then(TimelineTransportUiState::is_playing),
-            // //    |cx, is_playing| {
-            //         // Play/Pause button
-            //         Checkbox::new(cx, StateSystem::ui_state
-            //             .then(UiState::timeline_transport)
-            //             .then(TimelineTransportUiState::is_playing))
-            //             .on_toggle(|cx| cx.emit(AppEvent::Play))
-            //             .class("play_button");
-            // //    },
-            // //);
-
+            // Play/Pause Button
+            // TODO - Replace with a toggle button when one exists
             Binding::new(
                 cx,
                 StateSystem::ui_state

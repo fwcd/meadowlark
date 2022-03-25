@@ -20,10 +20,18 @@ pub fn timeline_view(cx: &mut Context) {
     .build(cx);
 
     HStack::new(cx, |cx| {
+
+        // Toolbar
+        HStack::new(cx, |cx|{
+
+        })
+        .class("toolbar");
+
+        // Track controls
         // TODO - Make this resizable
         TrackControlsView::new(cx).background_color(Color::rgb(42, 37, 39));
 
-        if cx.data::<TimelineViewState>().is_none() {
+        //if cx.data::<TimelineViewState>().is_none() {
             // Create some internal slider data (not exposed to the user)
             TimelineViewState {
                 start_time: MusicalTime::new(0, 0),
@@ -34,7 +42,7 @@ pub fn timeline_view(cx: &mut Context) {
                 posx: 0.0,
             }
             .build(cx);
-        }
+        //}
 
         ZStack::new(cx, |cx| {
             // Grid lines
@@ -235,7 +243,8 @@ pub fn timeline_view(cx: &mut Context) {
                 cx.emit(TimelineViewEvent::SetPosx(cx.cache.get_posx(cx.current)));
             }
         });
-    });
+    })
+    .class("timeline_view");
 }
 
 // TODO - Move this to ui state?
