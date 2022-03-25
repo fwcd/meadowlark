@@ -15,7 +15,7 @@ pub fn track<D>(cx: &mut Context, track_id: usize, track_data: D)
 where
     D: 'static + Lens<Target = TimelineTrackUiState> + Copy,
 {
-    let track_height = track_data.get(cx).height;
+    //let track_height = track_data.get(cx).height;
     // This ZStack isn't strictly necessary but the bindings mess with the list so this is a temporary fix
     ZStack::new(cx, move |cx| {
         Binding::new(
@@ -64,10 +64,11 @@ where
                                 MusicalTime::from_beats_f64(clip_start),
                                 MusicalTime::from_beats_f64(clip_end),
                             )
-                            .display(if should_display { Display::Flex } else { Display::None })
+                            //.display(if should_display { Display::Flex } else { Display::None })
                             .left(Pixels(clip_start_pos.floor() as f32 + 1.0))
                             .width(Pixels(clip_width as f32 - 1.0))
-                            .z_order(2);
+                            .z_order(2)
+                            .class("clip");
                         }
                     })
                     .background_color(Color::rgb(68, 60, 60));
@@ -97,8 +98,9 @@ where
             },
         );
     })
-    .height(Pixels(track_height))
+    .height(Pixels(200.0))
     .background_color(Color::rgb(68, 60, 60))
+    //.background_color(Color::rgb(200, 60, 60))
     .on_over(move |cx| {
         cx.emit(TimelineSelectionEvent::SetHoveredTrack(track_id));
     });

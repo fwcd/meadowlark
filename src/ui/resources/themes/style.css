@@ -73,3 +73,21 @@ label {
     background-color: #242424;
     child-left: 5px;
 }
+
+.timeline_view .toolbar {
+    height: 30px;
+    background-color: #534c4e;
+}
+
+.clip {
+
+}
+
+button {
+    background-color: #302c2f;
+    border-width: 0px;
+}
+
+button label {
+    color: white;
+}

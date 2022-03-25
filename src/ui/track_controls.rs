@@ -155,7 +155,7 @@ impl TrackControls {
                             //     .class("resize_ew");
                         });
                     })
-                    .height(Pixels(track_height));
+                    .height(Pixels(200.0));
 
                     // Element::new(cx)
                     //     .position_type(PositionType::SelfDirected)
