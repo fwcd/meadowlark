@@ -20,241 +20,236 @@ pub fn timeline_view(cx: &mut Context) {
     .build(cx);
 
     VStack::new(cx, |cx|{
-        // Toolbar
-        HStack::new(cx, |cx|{
+        // // Toolbar
+        // HStack::new(cx, |cx|{
 
-        })
-        .class("toolbar");
+        // })
+        // .class("toolbar");
 
         HStack::new(cx, |cx| {
-    
-    
-    
-            // Track controls
-            // TODO - Make this resizable
+
+        //     // Track controls
+        //     // TODO - Make this resizable
             TrackControlsView::new(cx).background_color(Color::rgb(42, 37, 39));
     
-            //if cx.data::<TimelineViewState>().is_none() {
-                // Create some internal slider data (not exposed to the user)
-                TimelineViewState {
-                    start_time: MusicalTime::new(0, 0),
-                    end_time: MusicalTime::new(15, 0),
-                    timeline_start: MusicalTime::new(0, 0),
-                    timeline_end: MusicalTime::new(30, 0),
-                    width: 0.0,
-                    posx: 0.0,
-                }
-                .build(cx);
-            //}
-    
-            ZStack::new(cx, |cx| {
+        //     TimelineViewState {
+        //         start_time: MusicalTime::new(0, 0),
+        //         end_time: MusicalTime::new(15, 0),
+        //         timeline_start: MusicalTime::new(0, 0),
+        //         timeline_end: MusicalTime::new(30, 0),
+        //         width: 0.0,
+        //         posx: 0.0,
+        //     }
+        //     .build(cx);
 
-                // Background
-                Element::new(cx).background_color(Color::rgb(76,68,69));
+        //     ZStack::new(cx, |cx| {
 
-                // Grid lines
-                TimelineGrid::new(cx).z_order(1).hoverable(false);
+        //         // Background
+        //         Element::new(cx).background_color(Color::rgb(76,68,69));
+
+        //         // Grid lines
+        //         TimelineGrid::new(cx).z_order(1).hoverable(false);
     
-                VStack::new(cx, move |cx| {
-                    // Bars labels
-                    Element::new(cx).height(Pixels(20.0)).background_color(Color::rgb(42, 37, 39));
+        //         VStack::new(cx, move |cx| {
+        //             // Bars labels
+        //             Element::new(cx).height(Pixels(20.0)).background_color(Color::rgb(42, 37, 39));
     
-                    // Loop Bar
-                    ZStack::new(cx, move |cx| {
+        //             // Loop Bar
+        //             ZStack::new(cx, move |cx| {
     
-                        // LoopRegion::new(cx)
-                        // .background_color(Color::rgba(
-                        //     50, 100, 255, 120,
-                        // ))
-                        // .width(Stretch(1.0))
-                        // .bind(StateSystem::ui_state
-                        // .then(UiState::timeline_transport)
-                        // .then(TimelineTransportUiState::loop_state), |handle, loop_state|{
-                        //     let loop_state = loop_state.get(handle.cx);
-                        //     match loop_state.status {
-                        //         LoopStatusUiState::Active => {
-                        //             let loop_start =
-                        //                 loop_state.loop_start.as_beats_f64();
-                        //             let loop_end = loop_state.loop_end.as_beats_f64();
+        //                 // LoopRegion::new(cx)
+        //                 // .background_color(Color::rgba(
+        //                 //     50, 100, 255, 120,
+        //                 // ))
+        //                 // .width(Stretch(1.0))
+        //                 // .bind(StateSystem::ui_state
+        //                 // .then(UiState::timeline_transport)
+        //                 // .then(TimelineTransportUiState::loop_state), |handle, loop_state|{
+        //                 //     let loop_state = loop_state.get(handle.cx);
+        //                 //     match loop_state.status {
+        //                 //         LoopStatusUiState::Active => {
+        //                 //             let loop_start =
+        //                 //                 loop_state.loop_start.as_beats_f64();
+        //                 //             let loop_end = loop_state.loop_end.as_beats_f64();
     
-                        //             handle
-                        //                 .bind(TimelineViewState::root, move |handle, track_view_state|{
-                        //                     let start_beats = track_view_state.get(handle.cx).start_time.as_beats_f64();
-                        //                     let end_beats = track_view_state.get(handle.cx).end_time.as_beats_f64();
-                        //                     let loop_start_pos = (loop_start - start_beats)
-                        //                         / (end_beats - start_beats);
-                        //                     let loop_end_pos = (loop_end - start_beats)
-                        //                         / (end_beats - start_beats);
-                        //                     let should_display = loop_start >= start_beats
-                        //                         || loop_end >= start_beats;
+        //                 //             handle
+        //                 //                 .bind(TimelineViewState::root, move |handle, track_view_state|{
+        //                 //                     let start_beats = track_view_state.get(handle.cx).start_time.as_beats_f64();
+        //                 //                     let end_beats = track_view_state.get(handle.cx).end_time.as_beats_f64();
+        //                 //                     let loop_start_pos = (loop_start - start_beats)
+        //                 //                         / (end_beats - start_beats);
+        //                 //                     let loop_end_pos = (loop_end - start_beats)
+        //                 //                         / (end_beats - start_beats);
+        //                 //                     let should_display = loop_start >= start_beats
+        //                 //                         || loop_end >= start_beats;
     
-                        //                     handle
-                        //                         .display(if should_display {
-                        //                             Display::Flex
-                        //                         } else {
-                        //                             Display::None
-                        //                         })
-                        //                         .left(Percentage(loop_start_pos as f32 * 100.0))
-                        //                         .right(Percentage(
-                        //                             (1.0 - loop_end_pos as f32) * 100.0,
-                        //                         ));
-                        //                 });
+        //                 //                     handle
+        //                 //                         .display(if should_display {
+        //                 //                             Display::Flex
+        //                 //                         } else {
+        //                 //                             Display::None
+        //                 //                         })
+        //                 //                         .left(Percentage(loop_start_pos as f32 * 100.0))
+        //                 //                         .right(Percentage(
+        //                 //                             (1.0 - loop_end_pos as f32) * 100.0,
+        //                 //                         ));
+        //                 //                 });
     
-                        //         }
+        //                 //         }
     
-                        //         LoopStatusUiState::Inactive => {
-                        //             //Element::new(cx).display(Display::None);
-                        //         }
-                        //     }
-                        // });
+        //                 //         LoopStatusUiState::Inactive => {
+        //                 //             //Element::new(cx).display(Display::None);
+        //                 //         }
+        //                 //     }
+        //                 // });
     
-                        // Binding::new(
-                        //     cx,
-                        //     StateSystem::ui_state
-                        //         .then(UiState::timeline_transport)
-                        //         .then(TimelineTransportUiState::loop_state),
-                        //     move |cx, loop_state| {
-                        //         let loop_state = loop_state.get(cx);
-                        //         match loop_state.status {
-                        //             LoopStatusUiState::Active => {
-                        //                 let loop_start =
-                        //                     loop_state.loop_start.as_beats_f64();
-                        //                 let loop_end = loop_state.loop_end.as_beats_f64();
+        //                 // Binding::new(
+        //                 //     cx,
+        //                 //     StateSystem::ui_state
+        //                 //         .then(UiState::timeline_transport)
+        //                 //         .then(TimelineTransportUiState::loop_state),
+        //                 //     move |cx, loop_state| {
+        //                 //         let loop_state = loop_state.get(cx);
+        //                 //         match loop_state.status {
+        //                 //             LoopStatusUiState::Active => {
+        //                 //                 let loop_start =
+        //                 //                     loop_state.loop_start.as_beats_f64();
+        //                 //                 let loop_end = loop_state.loop_end.as_beats_f64();
     
-                        //                 let loop_start_pos = (loop_start - start_beats)
-                        //                     / (end_beats - start_beats);
-                        //                 let loop_end_pos = (loop_end - start_beats)
-                        //                     / (end_beats - start_beats);
-                        //                 //println!("loop_start: {:?} loop_end: {:?} start_beats: {:?} end_beats: {:?}", loop_start, loop_end, start_beats, end_beats);
-                        //                 let should_display = loop_start >= start_beats
-                        //                     || loop_end >= start_beats;
-                        //                 LoopRegion::new(cx)
-                        //                     .display(if should_display {
-                        //                         Display::Flex
-                        //                     } else {
-                        //                         Display::None
-                        //                     })
-                        //                     .background_color(Color::rgba(
-                        //                         50, 100, 255, 120,
-                        //                     ))
-                        //                     .width(Stretch(1.0))
-                        //                     .left(Percentage(loop_start_pos as f32 * 100.0))
-                        //                     .right(Percentage(
-                        //                         (1.0 - loop_end_pos as f32) * 100.0,
-                        //                     ));
-                        //             }
+        //                 //                 let loop_start_pos = (loop_start - start_beats)
+        //                 //                     / (end_beats - start_beats);
+        //                 //                 let loop_end_pos = (loop_end - start_beats)
+        //                 //                     / (end_beats - start_beats);
+        //                 //                 //println!("loop_start: {:?} loop_end: {:?} start_beats: {:?} end_beats: {:?}", loop_start, loop_end, start_beats, end_beats);
+        //                 //                 let should_display = loop_start >= start_beats
+        //                 //                     || loop_end >= start_beats;
+        //                 //                 LoopRegion::new(cx)
+        //                 //                     .display(if should_display {
+        //                 //                         Display::Flex
+        //                 //                     } else {
+        //                 //                         Display::None
+        //                 //                     })
+        //                 //                     .background_color(Color::rgba(
+        //                 //                         50, 100, 255, 120,
+        //                 //                     ))
+        //                 //                     .width(Stretch(1.0))
+        //                 //                     .left(Percentage(loop_start_pos as f32 * 100.0))
+        //                 //                     .right(Percentage(
+        //                 //                         (1.0 - loop_end_pos as f32) * 100.0,
+        //                 //                     ));
+        //                 //             }
     
-                        //             LoopStatusUiState::Inactive => {
-                        //                 Element::new(cx).display(Display::None);
-                        //             }
-                        //         }
-                        //     },
-                        // );
-                    })
-                    .height(Pixels(20.0))
-                    .bottom(Pixels(2.0))
-                    .class("loop_bar");
+        //                 //             LoopStatusUiState::Inactive => {
+        //                 //                 Element::new(cx).display(Display::None);
+        //                 //             }
+        //                 //         }
+        //                 //     },
+        //                 // );
+        //             })
+        //             .height(Pixels(20.0))
+        //             .bottom(Pixels(2.0))
+        //             .class("loop_bar");
     
-                    // Tracks
-                    List::new(
-                        cx,
-                        StateSystem::ui_state.then(UiState::timeline_tracks),
-                        |cx, index, track_data| {
-                            //Element::new(cx).height(Pixels(200.0)).width(Stretch(1.0)).background_color(Color::green());
-                            track(cx, index, track_data);
-                        },
-                    )
-                    .width(Stretch(1.0))
-                    .background_color(Color::rgb(42,37,39))
-                    .row_between(Pixels(2.0));
+        //             // Tracks
+        //             List::new(
+        //                 cx,
+        //                 StateSystem::ui_state.then(UiState::timeline_tracks),
+        //                 |cx, index, track_data| {
+        //                     //Element::new(cx).height(Pixels(200.0)).width(Stretch(1.0)).background_color(Color::green());
+        //                     track(cx, index, track_data);
+        //                 },
+        //             )
+        //             .width(Stretch(1.0))
+        //             .background_color(Color::rgb(42,37,39))
+        //             .row_between(Pixels(2.0));
     
-                    // Scrollbar
-                    ZStack::new(cx, move |cx| {
-                        ScrollBar::new(cx)
-                            .bind(TimelineViewState::root, |handle, track_view_state| {
-                                let start_beats =
-                                    track_view_state.get(handle.cx).start_time.as_beats_f64();
-                                let end_beats = track_view_state.get(handle.cx).end_time.as_beats_f64();
-                                let timeline_start =
-                                    track_view_state.get(handle.cx).timeline_start.as_beats_f64();
-                                let timeline_end =
-                                    track_view_state.get(handle.cx).timeline_end.as_beats_f64();
-                                let timeline_width = track_view_state.get(handle.cx).width;
-                                let timeline_beats = end_beats - start_beats;
-                                let width_ratio = timeline_beats / (timeline_end - timeline_start);
-                                let start_ratio =
-                                    (start_beats - timeline_start) / (timeline_end - timeline_start);
+        //             // Scrollbar
+        //             ZStack::new(cx, move |cx| {
+        //                 ScrollBar::new(cx)
+        //                     .bind(TimelineViewState::root, |handle, track_view_state| {
+        //                         let start_beats =
+        //                             track_view_state.get(handle.cx).start_time.as_beats_f64();
+        //                         let end_beats = track_view_state.get(handle.cx).end_time.as_beats_f64();
+        //                         let timeline_start =
+        //                             track_view_state.get(handle.cx).timeline_start.as_beats_f64();
+        //                         let timeline_end =
+        //                             track_view_state.get(handle.cx).timeline_end.as_beats_f64();
+        //                         let timeline_width = track_view_state.get(handle.cx).width;
+        //                         let timeline_beats = end_beats - start_beats;
+        //                         let width_ratio = timeline_beats / (timeline_end - timeline_start);
+        //                         let start_ratio =
+        //                             (start_beats - timeline_start) / (timeline_end - timeline_start);
     
-                                handle
-                                    .left(Pixels(start_ratio as f32 * timeline_width))
-                                    .width(Pixels(width_ratio as f32 * timeline_width));
-                            })
-                            .background_color(Color::rgb(126, 118, 119));
-                    })
-                    .child_space(Pixels(1.0))
-                    .background_color(Color::rgb(36, 36, 36))
-                    .height(Pixels(15.0))
-                    .z_order(5);
-                });
+        //                         handle
+        //                             .left(Pixels(start_ratio as f32 * timeline_width))
+        //                             .width(Pixels(width_ratio as f32 * timeline_width));
+        //                     })
+        //                     .background_color(Color::rgb(126, 118, 119));
+        //             })
+        //             .child_space(Pixels(1.0))
+        //             .background_color(Color::rgb(36, 36, 36))
+        //             .height(Pixels(15.0))
+        //             .z_order(5);
+        //         });
     
-                // Playhead
-                Element::new(cx)
-                    .bind(
-                        StateSystem::ui_state
-                            .then(UiState::timeline_transport)
-                            .then(TimelineTransportUiState::playhead),
-                        |handle, playhead| {
-                            let current_beats = playhead.get(handle.cx).as_beats_f64();
+        //         // Playhead
+        //         Element::new(cx)
+        //             .bind(
+        //                 StateSystem::ui_state
+        //                     .then(UiState::timeline_transport)
+        //                     .then(TimelineTransportUiState::playhead),
+        //                 |handle, playhead| {
+        //                     let current_beats = playhead.get(handle.cx).as_beats_f64();
     
-                            handle.bind(TimelineViewState::root, move |handle, track_view_state| {
-                                let start_beats =
-                                    track_view_state.get(handle.cx).start_time.as_beats_f64();
-                                let end_beats = track_view_state.get(handle.cx).end_time.as_beats_f64();
-                                let should_display =
-                                    current_beats >= start_beats && current_beats <= end_beats;
+        //                     handle.bind(TimelineViewState::root, move |handle, track_view_state| {
+        //                         let start_beats =
+        //                             track_view_state.get(handle.cx).start_time.as_beats_f64();
+        //                         let end_beats = track_view_state.get(handle.cx).end_time.as_beats_f64();
+        //                         let should_display =
+        //                             current_beats >= start_beats && current_beats <= end_beats;
     
-                                let mut ratio =
-                                    (current_beats - start_beats) / (end_beats - start_beats);
-                                ratio = ratio.clamp(0.0, 1.0);
+        //                         let mut ratio =
+        //                             (current_beats - start_beats) / (end_beats - start_beats);
+        //                         ratio = ratio.clamp(0.0, 1.0);
     
-                                handle.left(Percentage(ratio as f32 * 100.0)).display(
-                                    if should_display { Display::Flex } else { Display::None },
-                                );
-                            });
-                        },
-                    )
-                    .background_color(Color::rgb(170, 161, 164))
-                    .width(Pixels(1.0))
-                    .z_order(4);
-            })
-            .background_color(Color::rgb(42, 37, 39))
-            .overflow(Overflow::Hidden)
-            .on_move(|cx, x, y| {
-                if x >= cx.cache.get_posx(cx.current) + cx.cache.get_width(cx.current) - 10.0
-                    && x <= cx.cache.get_posx(cx.current) + cx.cache.get_width(cx.current)
-                {
-                    // Moves the timeline view forwards when the mouse is on the right edge
-                    // TODO - sync with tick rate
-                    //cx.emit(TimelineViewEvent::ShiftForwards(MusicalTime::new(1.0)));
-                }
+        //                         handle.left(Percentage(ratio as f32 * 100.0)).display(
+        //                             if should_display { Display::Flex } else { Display::None },
+        //                         );
+        //                     });
+        //                 },
+        //             )
+        //             .background_color(Color::rgb(170, 161, 164))
+        //             .width(Pixels(1.0))
+        //             .z_order(4);
+        //     })
+        //     .background_color(Color::rgb(42, 37, 39))
+        //     .overflow(Overflow::Hidden)
+        //     .on_move(|cx, x, y| {
+        //         if x >= cx.cache.get_posx(cx.current) + cx.cache.get_width(cx.current) - 10.0
+        //             && x <= cx.cache.get_posx(cx.current) + cx.cache.get_width(cx.current)
+        //         {
+        //             // Moves the timeline view forwards when the mouse is on the right edge
+        //             // TODO - sync with tick rate
+        //             //cx.emit(TimelineViewEvent::ShiftForwards(MusicalTime::new(1.0)));
+        //         }
     
-                if x > cx.cache.get_posx(cx.current) && x < cx.cache.get_posx(cx.current) + 10.0 {
-                    // Moves the timeline view backwards when the mouse is on the left edge
-                    // TODO - sync with tick rate
-                    //cx.emit(TimelineViewEvent::ShiftBackwards(MusicalTime::new(1.0)));
-                }
-            })
-            .on_geo_changed(|cx, geo| {
-                if geo.contains(GeometryChanged::WIDTH_CHANGED) {
-                    cx.emit(TimelineViewEvent::SetWidth(cx.cache.get_width(cx.current)));
-                }
+        //         if x > cx.cache.get_posx(cx.current) && x < cx.cache.get_posx(cx.current) + 10.0 {
+        //             // Moves the timeline view backwards when the mouse is on the left edge
+        //             // TODO - sync with tick rate
+        //             //cx.emit(TimelineViewEvent::ShiftBackwards(MusicalTime::new(1.0)));
+        //         }
+        //     })
+        //     .on_geo_changed(|cx, geo| {
+        //         if geo.contains(GeometryChanged::WIDTH_CHANGED) {
+        //             cx.emit(TimelineViewEvent::SetWidth(cx.cache.get_width(cx.current)));
+        //         }
     
-                if geo.contains(GeometryChanged::POSX_CHANGED) {
-                    cx.emit(TimelineViewEvent::SetPosx(cx.cache.get_posx(cx.current)));
-                }
-            });
-        });
-    }).class("timeline_view");
+        //         if geo.contains(GeometryChanged::POSX_CHANGED) {
+        //             cx.emit(TimelineViewEvent::SetPosx(cx.cache.get_posx(cx.current)));
+        //         }
+        //     });
+        }).background_color(Color::green());
+    }).class("timeline_view").background_color(Color::red());
 
 }
 

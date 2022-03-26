@@ -18,36 +18,43 @@ impl TrackControlsView {
                 Label::new(cx, "BAR")
                     .height(Pixels(20.0))
                     .width(Stretch(1.0))
-                    .child_left(Stretch(0.0))
+                    .child_left(Stretch(1.0))
                     .child_right(Pixels(5.0));
 
                 // Loop Label
                 Label::new(cx, "LOOP")
                     .height(Pixels(20.0))
                     .width(Stretch(1.0))
-                    .child_left(Pixels(0.0))
+                    .child_left(Stretch(1.0))
                     .child_right(Pixels(5.0))
-                    .bottom(Pixels(2.0));
+                    .bottom(Pixels(2.0))
+                    .background_color(Color::red());
 
-                // Track Controls
-                List::new(
-                    cx,
-                    StateSystem::ui_state.then(UiState::timeline_tracks),
-                    |cx, index, track_data| {
-                        TrackControls::new(cx, index, track_data);
-                    },
-                )
-                .row_between(Pixels(2.0))
-                .height(Auto)
-                .width(Stretch(1.0));
+                ScrollView::new(cx, 0.0, 0.0, false, false, |cx|{
+                    // Track Controls
+                    List::new(
+                        cx,
+                        StateSystem::ui_state.then(UiState::timeline_tracks),
+                        |cx, index, track_data| {
+                            TrackControls::new(cx, index, track_data);
+                        },
+                    )
+                    .row_between(Pixels(2.0))
+                    .height(Auto)
+                    .width(Stretch(1.0));
+                })
+                .width(Stretch(1.0))
+                .height(Stretch(1.0));
 
-                // Temporary add track button
-                // Button::new(cx, |cx| {println!("Add Track")}, |cx|{
-                //     Label::new(cx, "Add Track")
-                //         .child_space(Stretch(1.0))
-                //         .height(Pixels(30.0))
-                //         .width(Stretch(1.0));
-                // }).height(Pixels(30.0)).width(Stretch(1.0));
+
+                // Add track button
+
+                Label::new(cx, "Add Track")
+                    .child_space(Stretch(1.0))
+                    .height(Pixels(30.0))
+                    .width(Stretch(1.0))
+                    .class("add_track")
+                    .on_press(|cx| cx.emit(AppEvent::AddTrack));
             })
             .width(Pixels(200.0))
     }
